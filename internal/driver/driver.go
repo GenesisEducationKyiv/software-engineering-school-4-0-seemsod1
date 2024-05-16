@@ -36,17 +36,5 @@ func ConnectSQL(env *config.EnvVariables) (*DB, error) {
 
 	dbConn.SQL = d
 
-	if err = testDB(d); err != nil {
-		return nil, err
-	}
-
 	return dbConn, nil
-}
-
-func testDB(d *gorm.DB) error {
-	err := d.Exec("SELECT 1").Error
-	if err != nil {
-		return err
-	}
-	return nil
 }

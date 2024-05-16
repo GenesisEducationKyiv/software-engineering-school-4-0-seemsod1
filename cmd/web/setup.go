@@ -5,6 +5,7 @@ import (
 	"github.com/seemsod1/api-project/internal/config"
 	"github.com/seemsod1/api-project/internal/driver"
 	"github.com/seemsod1/api-project/internal/handlers"
+	"github.com/seemsod1/api-project/internal/models"
 	"log"
 	"os"
 )
@@ -20,6 +21,10 @@ func setup(app *config.AppConfig) error {
 	conn, err := driver.ConnectSQL(app.Env)
 	if err != nil {
 		log.Fatal("Cannot connect to database! Dying...")
+	}
+
+	if err = runSchemasMigration(conn); err != nil {
+		log.Fatal("Cannot run schemas migration! Dying...")
 	}
 
 	repo := handlers.NewRepo(app, conn)
@@ -49,4 +54,11 @@ func loadEnv() (*config.EnvVariables, error) {
 		DBSSLMode:  dbSSLMode,
 		DBPort:     dbPort,
 	}, nil
+}
+func runSchemasMigration(db *driver.DB) error {
+	err := db.SQL.AutoMigrate(&models.Subscriber{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
