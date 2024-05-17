@@ -8,10 +8,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// Connection returns the gorm.DB
 func (m *gormDBRepo) Connection() *gorm.DB {
 	return m.DB
 }
 
+// AddSubscriber adds a new subscriber to the database
 func (m *gormDBRepo) AddSubscriber(email string) error {
 	s := models.Subscriber{
 		Email: email,
@@ -27,4 +29,19 @@ func (m *gormDBRepo) AddSubscriber(email string) error {
 		return err
 	}
 	return nil
+}
+
+// GetSubscribers returns all subscribers from the database
+func (m *gormDBRepo) GetSubscribers() ([]string, error) {
+	var subscribers []models.Subscriber
+	err := m.DB.Find(&subscribers).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var emails []string
+	for _, s := range subscribers {
+		emails = append(emails, s.Email)
+	}
+	return emails, nil
 }

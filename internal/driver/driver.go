@@ -8,13 +8,14 @@ import (
 	"log"
 )
 
+// DB is a struct that embeds the gorm.DB
 type DB struct {
 	SQL *gorm.DB
 }
 
 var dbConn = &DB{}
 
-// openDb opens a database connection
+// openDB opens a database connection
 func openDB(env *config.EnvVariables) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("host=%s user=%s dbname=%s password=%s sslmode=%s port=%s",
 		env.DBHost, env.DBUser, env.DBName, env.DBPassword, env.DBSSLMode, env.DBPort)

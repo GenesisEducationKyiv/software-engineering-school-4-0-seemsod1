@@ -9,6 +9,7 @@ import (
 	"net/http"
 )
 
+// Subscribe subscribes a user to the newsletter
 func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)
