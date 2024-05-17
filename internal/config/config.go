@@ -11,6 +11,4 @@ type EnvVariables struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
-	DBSSLMode  string
-	DBPort     string
 }

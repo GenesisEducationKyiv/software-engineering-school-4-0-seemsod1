@@ -21,8 +21,8 @@ type MailSender struct {
 	DB  storage.DatabaseRepo
 }
 
-// numWorkers is the number of workers to send emails.
 const numWorkers = 4
+const bufferSize = 100
 
 // NewMailSender creates a new MailSender struct.
 func NewMailSender(a *config.AppConfig, db *driver.DB) *MailSender {
@@ -59,7 +59,7 @@ func (ms *MailSender) Start() error {
 
 // initPool initializes the email pool.
 func initPool() (*email.Pool, chan<- *email.Email, *sync.WaitGroup, error) {
-	ch := make(chan *email.Email, 100)
+	ch := make(chan *email.Email, bufferSize)
 	var wg sync.WaitGroup
 
 	p, err := email.NewPool(

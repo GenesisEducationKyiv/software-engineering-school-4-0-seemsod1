@@ -54,16 +54,12 @@ func loadEnv() (*config.EnvVariables, error) {
 	dbUser := os.Getenv("DB_USER")
 	dbPass := os.Getenv("DB_PASS")
 	dbName := os.Getenv("DB_NAME")
-	dbSSLMode := os.Getenv("DB_SSLMODE")
-	dbPort := os.Getenv("DB_PORT")
 
 	return &config.EnvVariables{
 		DBHost:     dbHost,
 		DBUser:     dbUser,
 		DBPassword: dbPass,
 		DBName:     dbName,
-		DBSSLMode:  dbSSLMode,
-		DBPort:     dbPort,
 	}, nil
 }
 

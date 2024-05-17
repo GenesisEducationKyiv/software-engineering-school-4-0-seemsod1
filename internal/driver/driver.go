@@ -17,8 +17,8 @@ var dbConn = &DB{}
 
 // openDB opens a database connection
 func openDB(env *config.EnvVariables) (*gorm.DB, error) {
-	dsn := fmt.Sprintf("host=%s user=%s dbname=%s password=%s sslmode=%s port=%s",
-		env.DBHost, env.DBUser, env.DBName, env.DBPassword, env.DBSSLMode, env.DBPort)
+	dsn := fmt.Sprintf("host=%s user=%s dbname=%s password=%s sslmode=disable port=5432",
+		env.DBHost, env.DBUser, env.DBName, env.DBPassword)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
