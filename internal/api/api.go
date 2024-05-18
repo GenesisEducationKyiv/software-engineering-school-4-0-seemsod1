@@ -13,12 +13,12 @@ const url = "https://api.coinbase.com/v2/prices/usd-uah/buy"
 func GetUsdToUahRate() (float64, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 
 	type ApiResponse struct {
@@ -30,12 +30,12 @@ func GetUsdToUahRate() (float64, error) {
 	}
 	var apiResponse ApiResponse
 	if err = json.Unmarshal(respBody, &apiResponse); err != nil {
-		return 0, err
+		return -1, err
 	}
 
 	var price float64
 	if _, err = fmt.Sscanf(apiResponse.Data.Amount, "%f", &price); err != nil {
-		return 0, err
+		return -1, err
 	}
 
 	return price, nil

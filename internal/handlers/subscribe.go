@@ -5,7 +5,6 @@ import (
 	"github.com/go-chi/render"
 	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/forms"
-	"log"
 	"net/http"
 )
 
@@ -17,7 +16,7 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	email := r.Form.Get("email")
-	log.Println(r.Form)
+
 	form := forms.New(r.PostForm)
 	form.Required("email")
 	form.IsEmail("email")

@@ -31,17 +31,17 @@ func NewMailSender(a *config.AppConfig, db *driver.DB) *MailSender {
 
 // Start starts the mail sender.
 func (ms *MailSender) Start() error {
+	log.Println("Starting mail sender")
 	s, err := gocron.NewScheduler()
 	if err != nil {
 		return err
 	}
 	s.Start()
-
 	_, _ = s.NewJob(
 		gocron.DailyJob(
 			1,
 			gocron.NewAtTimes(
-				gocron.NewAtTime(14, 0, 0),
+				gocron.NewAtTime(9, 0, 0),
 			),
 		),
 		gocron.NewTask(func() {
