@@ -104,10 +104,18 @@ func TestSubscribe(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, rr.Code)
 
 	// internal error
+	body.Reset()
+	writer = multipart.NewWriter(&body)
+	err = writer.WriteField("email", "test@mail.com")
+	assert.NoError(t, err)
+	err = writer.Close()
+
+	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 	rr = httptest.NewRecorder()
 
 	mockDB.ExpectedCalls = nil
-	mockDB.On("AddSubscriber", "test1@mail.com").Return(assert.AnError)
+	mockDB.On("AddSubscriber", "test@mail.com").Return(assert.AnError)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
