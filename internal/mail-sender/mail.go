@@ -21,8 +21,10 @@ type MailSender struct {
 	DB  storage.DatabaseRepo
 }
 
-const numWorkers = 4
-const bufferSize = 100
+const (
+	numWorkers = 4
+	bufferSize = 100
+)
 
 // NewMailSender creates a new MailSender struct.
 func NewMailSender(a *config.AppConfig, db *driver.DB) *MailSender {
@@ -45,12 +47,14 @@ func (ms *MailSender) Start() error {
 			),
 		),
 		gocron.NewTask(func() {
+			log.Println("Sending emails")
 			subs, err := ms.DB.GetSubscribers()
 			if err != nil {
 				log.Printf("Error getting subscribers: %v\n", err)
 				return
 			}
 			sendEmails(subs)
+			log.Println("Emails sent")
 		}),
 	)
 

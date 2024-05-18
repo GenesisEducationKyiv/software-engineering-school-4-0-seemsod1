@@ -5,13 +5,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/models"
-	"gorm.io/gorm"
 )
-
-// Connection returns the gorm.DB
-func (m *gormDBRepo) Connection() *gorm.DB {
-	return m.DB
-}
 
 // AddSubscriber adds a new subscriber to the database
 func (m *gormDBRepo) AddSubscriber(email string) error {

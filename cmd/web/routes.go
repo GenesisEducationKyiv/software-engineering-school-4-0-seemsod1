@@ -15,7 +15,7 @@ func routes(app *config.AppConfig) http.Handler {
 	mux.Use(middleware.RequestID)
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
-	mux.Use(enableCORS)
+	mux.Use(EnableCORS)
 
 	mux.Get("/rate", handlers.Repo.Rate)
 	mux.Post("/subscribe", handlers.Repo.Subscribe)
