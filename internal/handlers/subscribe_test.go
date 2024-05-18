@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	customerrors "github.com/seemsod1/api-project/internal/errors"
+	"github.com/seemsod1/api-project/internal/models"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
 	"github.com/stretchr/testify/assert"
 	"mime/multipart"
@@ -89,7 +90,7 @@ func TestSubscribe(t *testing.T) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	rr = httptest.NewRecorder()
 
-	mockDB.On("AddSubscriber", "test@mail.com").Return(nil)
+	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(nil)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -98,7 +99,7 @@ func TestSubscribe(t *testing.T) {
 	rr = httptest.NewRecorder()
 
 	mockDB.ExpectedCalls = nil
-	mockDB.On("AddSubscriber", "test@mail.com").Return(customerrors.DuplicatedKey)
+	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(customerrors.DuplicatedKey)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusConflict, rr.Code)
@@ -115,7 +116,7 @@ func TestSubscribe(t *testing.T) {
 	rr = httptest.NewRecorder()
 
 	mockDB.ExpectedCalls = nil
-	mockDB.On("AddSubscriber", "test@mail.com").Return(assert.AnError)
+	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(assert.AnError)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)

@@ -8,11 +8,8 @@ import (
 )
 
 // AddSubscriber adds a new subscriber to the database
-func (m *gormDBRepo) AddSubscriber(email string) error {
-	s := models.Subscriber{
-		Email: email,
-	}
-	err := m.DB.Create(&s).Error
+func (m *gormDBRepo) AddSubscriber(subscriber models.Subscriber) error {
+	err := m.DB.Create(&subscriber).Error
 
 	var duplicateEntryError = &pgconn.PgError{Code: "23505"}
 

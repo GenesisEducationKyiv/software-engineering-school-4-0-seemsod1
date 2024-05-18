@@ -1,8 +1,10 @@
 package dbrepo
 
+import "github.com/seemsod1/api-project/internal/models"
+
 // AddSubscriber adds a new subscriber to the database
-func (m *mockDB) AddSubscriber(email string) error {
-	args := m.Called(email)
+func (m *mockDB) AddSubscriber(subscriber models.Subscriber) error {
+	args := m.Called(subscriber)
 	return args.Error(0)
 }
 

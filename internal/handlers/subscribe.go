@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/render"
 	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/forms"
+	"github.com/seemsod1/api-project/internal/models"
 	"net/http"
 )
 
@@ -25,8 +26,10 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid email", http.StatusBadRequest)
 		return
 	}
-
-	err := m.DB.AddSubscriber(email)
+	subscriber := models.Subscriber{
+		Email: email,
+	}
+	err := m.DB.AddSubscriber(subscriber)
 	if err != nil {
 
 		if errors.Is(err, customerrors.DuplicatedKey) {
