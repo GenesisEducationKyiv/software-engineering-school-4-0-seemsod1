@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/render"
 	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/forms"
+	"github.com/seemsod1/api-project/internal/helpers"
 	"github.com/seemsod1/api-project/internal/models"
 	"net/http"
 )
@@ -26,17 +27,23 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid email", http.StatusBadRequest)
 		return
 	}
-	subscriber := models.Subscriber{
-		Email: email,
-	}
-	err := m.DB.AddSubscriber(subscriber)
-	if err != nil {
 
+	offset, err := helpers.ProcessTimezoneHeader(r)
+	if err != nil {
+		http.Error(w, "Invalid timezone", http.StatusBadRequest)
+		return
+	}
+
+	subscriber := models.Subscriber{
+		Email:    email,
+		Timezone: offset,
+	}
+	err = m.DB.AddSubscriber(subscriber)
+	if err != nil {
 		if errors.Is(err, customerrors.DuplicatedKey) {
 			http.Error(w, "Already exists", http.StatusConflict)
 			return
 		}
-
 		http.Error(w, "Failed to subscribe", http.StatusInternalServerError)
 		return
 	}

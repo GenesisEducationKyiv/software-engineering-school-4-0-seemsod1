@@ -23,16 +23,12 @@ func (m *gormDBRepo) AddSubscriber(subscriber models.Subscriber) error {
 }
 
 // GetSubscribers returns all subscribers from the database
-func (m *gormDBRepo) GetSubscribers() ([]string, error) {
-	var subscribers []models.Subscriber
-	err := m.DB.Find(&subscribers).Error
+func (m *gormDBRepo) GetSubscribers(timezone int) ([]string, error) {
+	var emails []string
+	err := m.DB.Model(&models.Subscriber{}).Where("timezone = ?", timezone).Pluck("email", &emails).Error
 	if err != nil {
 		return nil, err
 	}
 
-	var emails []string
-	for _, s := range subscribers {
-		emails = append(emails, s.Email)
-	}
 	return emails, nil
 }

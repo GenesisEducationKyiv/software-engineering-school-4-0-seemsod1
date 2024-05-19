@@ -79,7 +79,7 @@ func TestSubscribe(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 
-	// correct email
+	// correct email but invalid timezone
 	body.Reset()
 	writer = multipart.NewWriter(&body)
 	err = writer.WriteField("email", "test@mail.com")
@@ -88,6 +88,24 @@ func TestSubscribe(t *testing.T) {
 
 	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Accept-Timezone", "abc")
+	rr = httptest.NewRecorder()
+
+	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(nil)
+
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	// correct email and timezone
+	body.Reset()
+	writer = multipart.NewWriter(&body)
+	err = writer.WriteField("email", "test@mail.com")
+	assert.NoError(t, err)
+	err = writer.Close()
+
+	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Accept-Timezone", "UTC")
 	rr = httptest.NewRecorder()
 
 	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(nil)

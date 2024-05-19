@@ -7,6 +7,7 @@ import (
 	"github.com/seemsod1/api-project/internal/api"
 	"github.com/seemsod1/api-project/internal/config"
 	"github.com/seemsod1/api-project/internal/driver"
+	"github.com/seemsod1/api-project/internal/helpers"
 	"github.com/seemsod1/api-project/internal/storage"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
 	"log"
@@ -24,6 +25,7 @@ type MailSender struct {
 const (
 	numWorkers = 4
 	bufferSize = 100
+	timeToSend = 9 // 9 AM to send emails
 )
 
 // NewMailSender creates a new MailSender struct.
@@ -40,15 +42,16 @@ func (ms *MailSender) Start() error {
 	}
 	s.Start()
 	_, _ = s.NewJob(
-		gocron.DailyJob(
-			1,
-			gocron.NewAtTimes(
-				gocron.NewAtTime(9, 0, 0),
-			),
+		gocron.CronJob(
+			"1 * * * *", // every hour at minute 1
+			false,
 		),
 		gocron.NewTask(func() {
 			log.Println("Sending emails")
-			subs, err := ms.DB.GetSubscribers()
+
+			timezoneDiff := helpers.GetTimezoneDiff(timeToSend)
+
+			subs, err := ms.DB.GetSubscribers(timezoneDiff)
 			if err != nil {
 				log.Printf("Error getting subscribers: %v\n", err)
 				return

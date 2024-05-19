@@ -9,7 +9,7 @@ func (m *mockDB) AddSubscriber(subscriber models.Subscriber) error {
 }
 
 // GetSubscribers returns all subscribers from the database
-func (m *mockDB) GetSubscribers() ([]string, error) {
+func (m *mockDB) GetSubscribers(timezone int) ([]string, error) {
 	args := m.Called()
 	return args.Get(0).([]string), args.Error(1)
 }
