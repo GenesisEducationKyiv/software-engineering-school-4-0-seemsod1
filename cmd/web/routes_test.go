@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/seemsod1/api-project/internal/config"
 	"testing"
@@ -16,6 +15,6 @@ func TestRoutes(t *testing.T) {
 	case *chi.Mux:
 		//do nothing
 	default:
-		t.Error(fmt.Sprintf("type is not *chi.Mux, got %v", v))
+		t.Errorf("type is not *chi.Mux, got %v", v)
 	}
 }

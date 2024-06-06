@@ -37,8 +37,7 @@ func (f *Form) Required(fields ...string) {
 
 // IsEmail checks for valid email address
 func (f *Form) IsEmail(field string) {
-	var validate *validator.Validate
-	validate = validator.New(validator.WithRequiredStructEnabled())
+	validate := validator.New(validator.WithRequiredStructEnabled())
 
 	if err := validate.Var(f.Get(field), "email"); err != nil {
 		f.Errors.Add(field, "Invalid email address")

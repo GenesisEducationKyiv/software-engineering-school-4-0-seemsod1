@@ -85,6 +85,7 @@ func TestSubscribe(t *testing.T) {
 	err = writer.WriteField("email", "test@mail.com")
 	assert.NoError(t, err)
 	err = writer.Close()
+	assert.NoError(t, err)
 
 	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -102,6 +103,7 @@ func TestSubscribe(t *testing.T) {
 	err = writer.WriteField("email", "test@mail.com")
 	assert.NoError(t, err)
 	err = writer.Close()
+	assert.NoError(t, err)
 
 	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -128,6 +130,7 @@ func TestSubscribe(t *testing.T) {
 	err = writer.WriteField("email", "test@mail.com")
 	assert.NoError(t, err)
 	err = writer.Close()
+	assert.NoError(t, err)
 
 	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
