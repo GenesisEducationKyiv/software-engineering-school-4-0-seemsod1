@@ -22,7 +22,7 @@ func (f *Form) Valid() bool {
 func New(data url.Values) *Form {
 	return &Form{
 		data,
-		errors(map[string][]string{}),
+		map[string][]string{},
 	}
 }
 
