@@ -1,4 +1,4 @@
-name: g   olangci-lint
+name: golangci-lint
 on:
   push:
     branches:
@@ -10,7 +10,7 @@ on:
 jobs:
   golangci:
     name: lint
-    runs-on: ubuntu-latest
+    runs-on: alpine-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
