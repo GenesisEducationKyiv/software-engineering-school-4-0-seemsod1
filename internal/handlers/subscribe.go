@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/go-chi/render"
 	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/forms"
 	"github.com/seemsod1/api-project/internal/helpers"
 	"github.com/seemsod1/api-project/internal/models"
-	"net/http"
 )
 
 // Subscribe subscribes a user to the newsletter
@@ -40,7 +41,7 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	err = m.DB.AddSubscriber(subscriber)
 	if err != nil {
-		if errors.Is(err, customerrors.DuplicatedKey) {
+		if errors.Is(err, customerrors.ErrDuplicatedKey) {
 			http.Error(w, "Already exists", http.StatusConflict)
 			return
 		}

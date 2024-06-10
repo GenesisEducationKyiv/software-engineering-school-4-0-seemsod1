@@ -4,8 +4,7 @@ import (
 	"errors"
 )
 
-// DuplicatedKey is an error that is returned when a key is duplicated
 var (
-	DuplicatedKey   = errors.New("duplicated key")
-	InvalidTimezone = errors.New("invalid timezone")
+	ErrDuplicatedKey   = errors.New("duplicated key")
+	ErrInvalidTimezone = errors.New("invalid timezone")
 )

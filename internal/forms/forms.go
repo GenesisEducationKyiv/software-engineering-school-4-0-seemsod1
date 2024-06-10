@@ -1,9 +1,10 @@
 package forms
 
 import (
-	"github.com/go-playground/validator/v10"
 	"net/url"
 	"strings"
+
+	"github.com/go-playground/validator/v10"
 )
 
 // Form creates a custom form struct, embeds a url.Values object

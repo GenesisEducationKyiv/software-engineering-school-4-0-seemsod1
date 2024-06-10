@@ -1,10 +1,11 @@
 package helpers
 
 import (
-	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"net/http"
 	"strconv"
 	"time"
+
+	customerrors "github.com/seemsod1/api-project/internal/errors"
 )
 
 // NewRateResponse is a helper function that creates a new RateResponse struct
@@ -23,11 +24,12 @@ func GetTimezoneDiff(needHour int) int {
 		if timeZoneDiff < 0 {
 			timeZoneDiff *= -1
 		}
-		if localHour > needHour {
+		switch {
+		case localHour > needHour:
 			return 24 - timeZoneDiff
-		} else if localHour < needHour {
+		case localHour < needHour:
 			return timeZoneDiff - 24
-		} else {
+		default:
 			return 0
 		}
 	} else {
@@ -41,17 +43,19 @@ func ProcessTimezoneHeader(r *http.Request) (int, error) {
 	var offsetStr string
 	var offset int
 	if userTimezone != "" {
-		if userTimezone == "UTC" {
+		switch {
+		case userTimezone == "UTC":
 			offsetStr = "0"
-		} else if len(userTimezone) == 5 {
+		case len(userTimezone) == 5:
 			offsetStr = userTimezone[3:]
-		} else {
-			return 0, customerrors.InvalidTimezone
+		default:
+			return 0, customerrors.ErrInvalidTimezone
 		}
-		offset, err := strconv.Atoi(offsetStr)
-		if err != nil || offset > 12 || offset < -12 {
-			return 0, customerrors.InvalidTimezone
+		offsetFromString, err := strconv.Atoi(offsetStr)
+		if err != nil || offsetFromString > 12 || offsetFromString < -12 {
+			return 0, customerrors.ErrInvalidTimezone
 		}
+		offset = offsetFromString
 	} else {
 		offset = 0
 	}

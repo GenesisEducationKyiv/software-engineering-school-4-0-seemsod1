@@ -1,7 +1,12 @@
-package mailSender
+package mailsender
 
 import (
 	"fmt"
+	"log"
+	"net/smtp"
+	"os"
+	"sync"
+
 	"github.com/go-co-op/gocron/v2"
 	"github.com/jordan-wright/email"
 	"github.com/seemsod1/api-project/internal/api"
@@ -10,10 +15,6 @@ import (
 	"github.com/seemsod1/api-project/internal/helpers"
 	"github.com/seemsod1/api-project/internal/storage"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
-	"log"
-	"net/smtp"
-	"os"
-	"sync"
 )
 
 // MailSender is a struct that contains the app configuration and the database repository.

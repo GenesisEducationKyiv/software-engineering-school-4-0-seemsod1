@@ -12,8 +12,7 @@ func EnableCORS(h http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Access-Control-Allow-Origin,Set-Cookie,Date,Accept, Content-Type, X-CSRF-Token")
 			return
-		} else {
-			h.ServeHTTP(w, r)
 		}
+		h.ServeHTTP(w, r)
 	})
 }

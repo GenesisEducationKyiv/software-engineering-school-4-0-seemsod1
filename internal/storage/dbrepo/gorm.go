@@ -2,6 +2,7 @@ package dbrepo
 
 import (
 	"errors"
+
 	"github.com/jackc/pgx/v5/pgconn"
 	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/models"
@@ -11,11 +12,11 @@ import (
 func (m *gormDBRepo) AddSubscriber(subscriber models.Subscriber) error {
 	err := m.DB.Create(&subscriber).Error
 
-	var duplicateEntryError = &pgconn.PgError{Code: "23505"}
+	duplicateEntryError := &pgconn.PgError{Code: "23505"}
 
 	if err != nil {
 		if errors.As(err, &duplicateEntryError) {
-			return customerrors.DuplicatedKey
+			return customerrors.ErrDuplicatedKey
 		}
 		return err
 	}
