@@ -14,6 +14,6 @@ func TestEnableCORS(t *testing.T) {
 	case http.Handler:
 		//do nothing
 	default:
-		t.Errorf("type is not http.Handler, got %v", v)
+		t.Errorf("type is not http.Handler, got %w", v)
 	}
 }

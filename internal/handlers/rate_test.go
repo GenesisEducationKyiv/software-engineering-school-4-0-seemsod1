@@ -17,7 +17,7 @@ func TestRate(t *testing.T) {
 	assert.NoError(t, err)
 
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected status OK; got %v", resp.Status)
+		t.Errorf("expected status OK; got %w", resp.Status)
 	}
 	defer resp.Body.Close()
 
