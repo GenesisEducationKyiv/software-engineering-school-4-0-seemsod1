@@ -48,16 +48,10 @@ func loadEnv() *config.EnvVariables {
 		log.Println("Error loading .env file")
 	}
 
-	dbHost := os.Getenv("DB_HOST")
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASS")
-	dbName := os.Getenv("DB_NAME")
+	dbUrl := os.Getenv("DB_URL")
 
 	return &config.EnvVariables{
-		DBHost:     dbHost,
-		DBUser:     dbUser,
-		DBPassword: dbPass,
-		DBName:     dbName,
+		DSN: dbUrl,
 	}
 }
 

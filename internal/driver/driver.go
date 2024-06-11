@@ -1,10 +1,9 @@
 package driver
 
 import (
-	"fmt"
+	"github.com/seemsod1/api-project/internal/config"
 	"log"
 
-	"github.com/seemsod1/api-project/internal/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -18,9 +17,7 @@ var dbConn = &DB{}
 
 // openDB opens a database connection
 func openDB(env *config.EnvVariables) *gorm.DB {
-	dsn := fmt.Sprintf("host=%s user=%s dbname=%s password=%s sslmode=disable port=5432",
-		env.DBHost, env.DBUser, env.DBName, env.DBPassword)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(env.DSN), &gorm.Config{})
 	if err != nil {
 		log.Fatal("error connecting to database: ", err)
 	}

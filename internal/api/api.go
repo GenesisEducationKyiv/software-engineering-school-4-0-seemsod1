@@ -35,6 +35,8 @@ func GetUsdToUahRate() (float64, error) {
 		return -1, err
 	}
 
+	fmt.Println("Response Body:", string(respBody))
+
 	type APIResponse struct {
 		Data struct {
 			Amount   string `json:"amount"`
