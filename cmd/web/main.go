@@ -20,7 +20,7 @@ func main() {
 	srv := &http.Server{
 		Addr:        portNumber,
 		Handler:     routes(),
-		ReadTimeout: 10 * time.Second,
+		ReadTimeout: 5 * time.Second,
 	}
 
 	err := srv.ListenAndServe()
