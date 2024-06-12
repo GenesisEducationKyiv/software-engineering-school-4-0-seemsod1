@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/seemsod1/api-project/internal/config"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/seemsod1/api-project/internal/config"
 )
 
 const portNumber = ":8080"

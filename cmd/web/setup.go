@@ -48,10 +48,10 @@ func loadEnv() *config.EnvVariables {
 		log.Println("Error loading .env file")
 	}
 
-	dbUrl := os.Getenv("DB_URL")
+	dbURL := os.Getenv("DB_URL")
 
 	return &config.EnvVariables{
-		DSN: dbUrl,
+		DSN: dbURL,
 	}
 }
 

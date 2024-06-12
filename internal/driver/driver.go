@@ -1,8 +1,9 @@
 package driver
 
 import (
-	"github.com/seemsod1/api-project/internal/config"
 	"log"
+
+	"github.com/seemsod1/api-project/internal/config"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

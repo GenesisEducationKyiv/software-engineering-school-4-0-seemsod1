@@ -156,7 +156,7 @@ func sendEmails(cfg *Config, recipients []string) {
 	close(ch)
 }
 
-func initConfigFromEnv() (string, string, string, string) {
+func initConfigFromEnv() (hostName, hostPort, mailBox, appPassword string) {
 	mailConfig := os.Getenv("MAILER_URL")
 	if mailConfig == "" {
 		return "", "", "", ""
