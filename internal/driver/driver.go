@@ -1,11 +1,12 @@
 package driver
 
 import (
-	"fmt"
+	"log"
+
 	"github.com/seemsod1/api-project/internal/config"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"log"
 )
 
 // DB is a struct that embeds the gorm.DB
@@ -16,24 +17,18 @@ type DB struct {
 var dbConn = &DB{}
 
 // openDB opens a database connection
-func openDB(env *config.EnvVariables) (*gorm.DB, error) {
-	dsn := fmt.Sprintf("host=%s user=%s dbname=%s password=%s sslmode=disable port=5432",
-		env.DBHost, env.DBUser, env.DBName, env.DBPassword)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-
+func openDB(env *config.EnvVariables) *gorm.DB {
+	db, err := gorm.Open(postgres.Open(env.DSN), &gorm.Config{})
 	if err != nil {
 		log.Fatal("error connecting to database: ", err)
 	}
 
-	return db, nil
+	return db
 }
 
 // ConnectSQL connects to the database
 func ConnectSQL(env *config.EnvVariables) (*DB, error) {
-	d, err := openDB(env)
-	if err != nil {
-		return nil, err
-	}
+	d := openDB(env)
 
 	dbConn.SQL = d
 

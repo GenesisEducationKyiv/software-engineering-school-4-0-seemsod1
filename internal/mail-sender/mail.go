@@ -1,7 +1,13 @@
-package mailSender
+package mailsender
 
 import (
 	"fmt"
+	"log"
+	"net/smtp"
+	"os"
+	"strings"
+	"sync"
+
 	"github.com/go-co-op/gocron/v2"
 	"github.com/jordan-wright/email"
 	"github.com/seemsod1/api-project/internal/api"
@@ -10,32 +16,53 @@ import (
 	"github.com/seemsod1/api-project/internal/helpers"
 	"github.com/seemsod1/api-project/internal/storage"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
-	"log"
-	"net/smtp"
-	"os"
-	"sync"
 )
 
 // MailSender is a struct that contains the app configuration and the database repository.
 type MailSender struct {
-	App *config.AppConfig
-	DB  storage.DatabaseRepo
+	App    *config.AppConfig
+	DB     storage.DatabaseRepo
+	Config *Config
+}
+
+type Config struct {
+	Host     string
+	Port     string
+	From     string
+	Password string
 }
 
 const (
 	numWorkers = 4
 	bufferSize = 100
-	timeToSend = 9 // 9 AM to send emails
+	timeToSend = 22 // 9 AM to send emails
 )
 
 // NewMailSender creates a new MailSender struct.
 func NewMailSender(a *config.AppConfig, db *driver.DB) *MailSender {
-	return &MailSender{DB: dbrepo.NewGormRepo(db.SQL, a)}
+	cfg := NewConfig()
+	return &MailSender{DB: dbrepo.NewGormRepo(db.SQL, a), Config: cfg}
+}
+
+func NewConfig() *Config {
+	host, port, from, pass := initConfigFromEnv()
+	return &Config{Host: host, Port: port, From: from, Password: pass}
+}
+
+func (c *Config) Validate() bool {
+	if c.Host == "" || c.Port == "" || c.From == "" || c.Password == "" {
+		return false
+	}
+	return true
 }
 
 // Start starts the mail sender.
 func (ms *MailSender) Start() error {
 	log.Println("Starting mail sender")
+	if !ms.Config.Validate() {
+		return fmt.Errorf("invalid mail config")
+	}
+
 	s, err := gocron.NewScheduler()
 	if err != nil {
 		return err
@@ -43,7 +70,7 @@ func (ms *MailSender) Start() error {
 	s.Start()
 	_, _ = s.NewJob(
 		gocron.CronJob(
-			"1 * * * *", // every hour at minute 1
+			"17 * * * *", // every hour at minute 1
 			false,
 		),
 		gocron.NewTask(func() {
@@ -56,8 +83,9 @@ func (ms *MailSender) Start() error {
 				log.Printf("Error getting subscribers: %v\n", err)
 				return
 			}
-			sendEmails(subs)
+			sendEmails(ms.Config, subs)
 			log.Println("Emails sent")
+			log.Println(subs)
 		}),
 	)
 
@@ -65,14 +93,14 @@ func (ms *MailSender) Start() error {
 }
 
 // initPool initializes the email pool.
-func initPool() (*email.Pool, chan<- *email.Email, *sync.WaitGroup, error) {
+func initPool(cfg *Config) (*email.Pool, chan<- *email.Email, *sync.WaitGroup, error) {
 	ch := make(chan *email.Email, bufferSize)
 	var wg sync.WaitGroup
 
 	p, err := email.NewPool(
-		fmt.Sprintf("%s:%s", os.Getenv("MAIL_HOST"), os.Getenv("MAIL_PORT")),
+		fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
 		numWorkers,
-		smtp.PlainAuth("", os.Getenv("MAIL_FROM"), os.Getenv("MAIL_PASS"), os.Getenv("MAIL_HOST")),
+		smtp.PlainAuth("", cfg.From, cfg.Password, cfg.Host),
 	)
 	if err != nil {
 		return nil, nil, nil, err
@@ -100,8 +128,8 @@ func sendEmail(ch chan<- *email.Email, wg *sync.WaitGroup, e *email.Email) {
 }
 
 // sendEmails sends emails to the recipients.
-func sendEmails(recipients []string) {
-	p, ch, wg, err := initPool()
+func sendEmails(cfg *Config, recipients []string) {
+	p, ch, wg, err := initPool(cfg)
 	if err != nil {
 		log.Printf("Error initializing email pool: %v\n", err)
 		return
@@ -114,11 +142,9 @@ func sendEmails(recipients []string) {
 	}
 	msgText := []byte("Current rate: " + fmt.Sprintf("%.2f", price))
 
-	from := os.Getenv("MAIL_FROM")
-
 	for _, recipient := range recipients {
 		e := email.NewEmail()
-		e.From = from
+		e.From = cfg.From
 		e.To = []string{recipient}
 		e.Subject = "Currency rate notification: USD to UAH"
 		e.Text = msgText
@@ -128,4 +154,17 @@ func sendEmails(recipients []string) {
 	wg.Wait()
 	p.Close()
 	close(ch)
+}
+
+func initConfigFromEnv() (hostName, hostPort, mailBox, appPassword string) {
+	mailConfig := os.Getenv("MAILER_URL")
+	if mailConfig == "" {
+		return "", "", "", ""
+	}
+
+	parts := strings.Split(mailConfig, " ")
+	if len(parts) != 4 {
+		return "", "", "", ""
+	}
+	return parts[0], parts[1], parts[2], parts[3]
 }

@@ -7,8 +7,5 @@ type AppConfig struct {
 
 // EnvVariables is a struct that holds the environment variables
 type EnvVariables struct {
-	DBHost     string
-	DBUser     string
-	DBPassword string
-	DBName     string
+	DSN string
 }

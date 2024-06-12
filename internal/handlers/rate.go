@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"net/http"
+
 	"github.com/go-chi/render"
 	"github.com/seemsod1/api-project/internal/api"
 	"github.com/seemsod1/api-project/internal/helpers"
-	"net/http"
 )
 
 // Rate returns the current USD to UAH rate

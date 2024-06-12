@@ -1,22 +1,24 @@
-package handlers
+package handlers_test
 
 import (
 	"bytes"
-	customerrors "github.com/seemsod1/api-project/internal/errors"
-	"github.com/seemsod1/api-project/internal/models"
-	"github.com/seemsod1/api-project/internal/storage/dbrepo"
-	"github.com/stretchr/testify/assert"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	customerrors "github.com/seemsod1/api-project/internal/errors"
+	"github.com/seemsod1/api-project/internal/handlers"
+	"github.com/seemsod1/api-project/internal/models"
+	"github.com/seemsod1/api-project/internal/storage/dbrepo"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSubscribe(t *testing.T) {
 	var body bytes.Buffer
 
 	mockDB := dbrepo.NewMockDB()
-	repo := Repository{DB: mockDB}
+	repo := handlers.Repository{DB: mockDB}
 
 	// no form data
 	req := httptest.NewRequest(http.MethodPost, "/subscribe", &body)
@@ -31,7 +33,7 @@ func TestSubscribe(t *testing.T) {
 	err := writer.Close()
 	assert.NoError(t, err)
 
-	req = httptest.NewRequest(http.MethodPost, "/subscribe", nil)
+	req = httptest.NewRequest(http.MethodPost, "/subscribe", http.NoBody)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -85,6 +87,7 @@ func TestSubscribe(t *testing.T) {
 	err = writer.WriteField("email", "test@mail.com")
 	assert.NoError(t, err)
 	err = writer.Close()
+	assert.NoError(t, err)
 
 	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -102,6 +105,7 @@ func TestSubscribe(t *testing.T) {
 	err = writer.WriteField("email", "test@mail.com")
 	assert.NoError(t, err)
 	err = writer.Close()
+	assert.NoError(t, err)
 
 	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -117,7 +121,7 @@ func TestSubscribe(t *testing.T) {
 	rr = httptest.NewRecorder()
 
 	mockDB.ExpectedCalls = nil
-	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(customerrors.DuplicatedKey)
+	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(customerrors.ErrDuplicatedKey)
 
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusConflict, rr.Code)
@@ -128,6 +132,7 @@ func TestSubscribe(t *testing.T) {
 	err = writer.WriteField("email", "test@mail.com")
 	assert.NoError(t, err)
 	err = writer.Close()
+	assert.NoError(t, err)
 
 	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())

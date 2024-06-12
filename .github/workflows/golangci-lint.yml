@@ -1,0 +1,29 @@
+name: golangci-lint
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  golangci:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: jirutka/setup-alpine@v1
+        with:
+          branch: v3.15
+      - run: cat /etc/alpine-release
+        shell: alpine.sh {0}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.58
+          args: --timeout 5m

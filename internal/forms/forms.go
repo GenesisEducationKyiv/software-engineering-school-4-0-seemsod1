@@ -1,9 +1,10 @@
 package forms
 
 import (
-	"github.com/go-playground/validator/v10"
 	"net/url"
 	"strings"
+
+	"github.com/go-playground/validator/v10"
 )
 
 // Form creates a custom form struct, embeds a url.Values object
@@ -21,7 +22,7 @@ func (f *Form) Valid() bool {
 func New(data url.Values) *Form {
 	return &Form{
 		data,
-		errors(map[string][]string{}),
+		map[string][]string{},
 	}
 }
 
@@ -37,8 +38,7 @@ func (f *Form) Required(fields ...string) {
 
 // IsEmail checks for valid email address
 func (f *Form) IsEmail(field string) {
-	var validate *validator.Validate
-	validate = validator.New(validator.WithRequiredStructEnabled())
+	validate := validator.New(validator.WithRequiredStructEnabled())
 
 	if err := validate.Var(f.Get(field), "email"); err != nil {
 		f.Errors.Add(field, "Invalid email address")

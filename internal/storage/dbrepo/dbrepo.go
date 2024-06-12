@@ -13,7 +13,7 @@ type gormDBRepo struct {
 	DB  *gorm.DB
 }
 
-type mockDB struct {
+type MockDB struct {
 	mock.Mock
 }
 
@@ -25,6 +25,6 @@ func NewGormRepo(conn *gorm.DB, a *config.AppConfig) storage.DatabaseRepo {
 	}
 }
 
-func NewMockDB() *mockDB {
-	return &mockDB{}
+func NewMockDB() *MockDB {
+	return &MockDB{}
 }

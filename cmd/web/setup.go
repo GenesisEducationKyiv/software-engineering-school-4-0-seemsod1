@@ -1,22 +1,20 @@
 package main
 
 import (
+	"log"
+	"os"
+
 	"github.com/joho/godotenv"
 	"github.com/seemsod1/api-project/internal/config"
 	"github.com/seemsod1/api-project/internal/driver"
 	"github.com/seemsod1/api-project/internal/handlers"
 	mailSender "github.com/seemsod1/api-project/internal/mail-sender"
 	"github.com/seemsod1/api-project/internal/models"
-	"log"
-	"os"
 )
 
 // setup sets up the application
 func setup(app *config.AppConfig) error {
-	env, err := loadEnv()
-	if err != nil {
-		return err
-	}
+	env := loadEnv()
 
 	app.Env = env
 
@@ -44,23 +42,17 @@ func setup(app *config.AppConfig) error {
 }
 
 // loadEnv loads the environment variables
-func loadEnv() (*config.EnvVariables, error) {
+func loadEnv() *config.EnvVariables {
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Error loading .env file")
 	}
 
-	dbHost := os.Getenv("DB_HOST")
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASS")
-	dbName := os.Getenv("DB_NAME")
+	dbURL := os.Getenv("DB_URL")
 
 	return &config.EnvVariables{
-		DBHost:     dbHost,
-		DBUser:     dbUser,
-		DBPassword: dbPass,
-		DBName:     dbName,
-	}, nil
+		DSN: dbURL,
+	}
 }
 
 // runSchemasMigration runs the schemas migration

@@ -1,15 +1,15 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/seemsod1/api-project/internal/config"
 	"github.com/seemsod1/api-project/internal/handlers"
-	"net/http"
 )
 
 // routes sets up the routes for the application
-func routes(app *config.AppConfig) http.Handler {
+func routes() http.Handler {
 	mux := chi.NewRouter()
 
 	mux.Use(middleware.RequestID)
