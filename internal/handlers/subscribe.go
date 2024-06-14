@@ -7,8 +7,8 @@ import (
 	"github.com/go-chi/render"
 	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/forms"
-	"github.com/seemsod1/api-project/internal/helpers"
 	"github.com/seemsod1/api-project/internal/models"
+	"github.com/seemsod1/api-project/internal/timezone"
 )
 
 // Subscribe subscribes a user to the newsletter
@@ -29,18 +29,16 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	offset, err := helpers.ProcessTimezoneHeader(r)
+	offset, err := timezone.ProcessTimezoneHeader(r)
 	if err != nil {
 		http.Error(w, "Invalid timezone", http.StatusBadRequest)
 		return
 	}
 
-	subscriber := models.Subscriber{
+	if err = m.DB.AddSubscriber(models.Subscriber{
 		Email:    email,
 		Timezone: offset,
-	}
-	err = m.DB.AddSubscriber(subscriber)
-	if err != nil {
+	}); err != nil {
 		if errors.Is(err, customerrors.ErrDuplicatedKey) {
 			http.Error(w, "Already exists", http.StatusConflict)
 			return

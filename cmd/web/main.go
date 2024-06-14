@@ -10,10 +10,10 @@ import (
 
 const portNumber = ":8080"
 
-var app config.AppConfig
-
 func main() {
-	if err := setup(&app); err != nil {
+	app := config.NewAppConfig()
+
+	if err := setup(app); err != nil {
 		log.Fatal(err)
 	}
 

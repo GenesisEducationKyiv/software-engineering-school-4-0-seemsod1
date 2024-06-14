@@ -1,15 +1,17 @@
-package api_test
+package rateapi_test
 
 import (
 	"testing"
 
-	"github.com/seemsod1/api-project/internal/api"
+	"github.com/seemsod1/api-project/internal/rateapi"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetUsdToUahRate(t *testing.T) {
-	price, err := api.GetUsdToUahRate()
+	provider := rateapi.NewCoinbaseProvider()
+
+	price, err := provider.GetUsdToUahRate()
 	assert.NoError(t, err)
 
 	if price == -1 {
