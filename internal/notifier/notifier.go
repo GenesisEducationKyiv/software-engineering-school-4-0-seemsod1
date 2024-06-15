@@ -8,11 +8,9 @@ import (
 
 	"github.com/jordan-wright/email"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/seemsod1/api-project/internal/driver"
 	"github.com/seemsod1/api-project/internal/rateapi"
 	"github.com/seemsod1/api-project/internal/scheduler"
 	"github.com/seemsod1/api-project/internal/storage"
-	"github.com/seemsod1/api-project/internal/storage/dbrepo"
 	"github.com/seemsod1/api-project/internal/timezone"
 )
 
@@ -35,9 +33,9 @@ const (
 	minuteToSend = 1 // send at *:01 AM
 )
 
-// NewEmailNotifierWithGORM creates a new email notifier with GORM.
-func NewEmailNotifierWithGORM(db *driver.GORMDriver) *EmailNotifier {
-	return &EmailNotifier{DB: dbrepo.NewGormRepo(db.SQL)}
+// NewEmailNotifier creates a new email notifier.
+func NewEmailNotifier(db storage.DatabaseRepo) *EmailNotifier {
+	return &EmailNotifier{DB: db}
 }
 
 func NewEmailNotifierConfig() EmailNotifierConfig {
@@ -128,7 +126,7 @@ func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string
 
 	provider := rateapi.NewCoinbaseProvider()
 
-	price, err := provider.GetUsdToUahRate()
+	price, err := provider.GetRate("USD", "UAH")
 	if err != nil {
 		log.Printf("Error getting rate: %v\n", err)
 		return

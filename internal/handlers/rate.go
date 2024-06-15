@@ -12,7 +12,7 @@ import (
 func (m *Repository) Rate(w http.ResponseWriter, r *http.Request) {
 	provider := rateapi.NewCoinbaseProvider()
 
-	price, err := provider.GetUsdToUahRate()
+	price, err := provider.GetRate("USD", "UAH")
 	if err != nil {
 		http.Error(w, "Failed to get rate", http.StatusBadRequest)
 		return

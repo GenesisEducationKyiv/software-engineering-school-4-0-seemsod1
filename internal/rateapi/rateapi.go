@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -15,11 +16,15 @@ func NewCoinbaseProvider() *CoinbaseProvider {
 	return &CoinbaseProvider{}
 }
 
-const coinbaseURL = "https://api.coinbase.com/v2/prices/usd-uah/buy"
+const coinbaseURL = "https://api.coinbase.com/v2/prices/%s-%s/buy"
 
-// GetUsdToUahRate returns the current USD to UAH rate
-func (cb *CoinbaseProvider) GetUsdToUahRate() (float64, error) {
-	response, err := processGETRequest(coinbaseURL)
+// GetRate returns the current base to target currencies rate
+func (cb *CoinbaseProvider) GetRate(base, target string) (float64, error) {
+	if !validateRateParam(base) || !validateRateParam(target) {
+		return -1, fmt.Errorf("invalid rate parameters")
+	}
+
+	response, err := processGETRequest(fmt.Sprintf(coinbaseURL, base, target))
 	if err != nil {
 		return -1, err
 	}
@@ -69,4 +74,9 @@ func processGETRequest(url string) ([]byte, error) {
 	}
 
 	return respBody, nil
+}
+
+func validateRateParam(code string) bool {
+	_, err := regexp.MatchString("^[A-Z]{3}$", code)
+	return err == nil
 }

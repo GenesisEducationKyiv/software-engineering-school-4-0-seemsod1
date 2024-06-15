@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"github.com/seemsod1/api-project/internal/storage/dbrepo"
+
 	"github.com/joho/godotenv"
 	"github.com/seemsod1/api-project/internal/config"
 	"github.com/seemsod1/api-project/internal/driver"
@@ -28,10 +30,12 @@ func setup(_ *config.AppConfig) error {
 		return err
 	}
 
-	repo := handlers.NewRepoWithGORM(db)
+	dbRepository := dbrepo.NewGormRepo(db.DB)
+	repo := handlers.NewRepo(dbRepository)
+
 	handlers.NewHandlers(repo)
 
-	notification := notifier.NewEmailNotifierWithGORM(db)
+	notification := notifier.NewEmailNotifier(dbRepository)
 	if err = notification.Start(); err != nil {
 		log.Println("Cannot start mail sender! Dying...")
 		return err

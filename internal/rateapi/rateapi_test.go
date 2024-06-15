@@ -11,7 +11,7 @@ import (
 func TestGetUsdToUahRate(t *testing.T) {
 	provider := rateapi.NewCoinbaseProvider()
 
-	price, err := provider.GetUsdToUahRate()
+	price, err := provider.GetRate("USD", "UAH")
 	assert.NoError(t, err)
 
 	if price == -1 {
