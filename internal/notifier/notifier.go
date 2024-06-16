@@ -3,103 +3,99 @@ package notifier
 import (
 	"fmt"
 	"log"
-	"net/smtp"
 	"sync"
+	"time"
 
 	"github.com/jordan-wright/email"
-	"github.com/kelseyhightower/envconfig"
-	"github.com/seemsod1/api-project/internal/rateapi"
-	"github.com/seemsod1/api-project/internal/scheduler"
 	"github.com/seemsod1/api-project/internal/storage"
 	"github.com/seemsod1/api-project/internal/timezone"
 )
 
-// EmailNotifier is a struct that contains the app configuration and the database repository.
-type EmailNotifier struct {
-	DB storage.DatabaseRepo
-}
-
-type EmailNotifierConfig struct {
-	Host     string
-	Port     string
-	From     string
-	Password string
-}
-
 const (
 	numWorkers   = 4
 	bufferSize   = 100
-	timeToSend   = 9 // 9 AM to send emails
-	minuteToSend = 1 // send at *:01 AM
+	TimeToSend   = 9 // 9 AM to send emails
+	MinuteToSend = 1 // send at *:01 AM
 )
 
-// NewEmailNotifier creates a new email notifier.
-func NewEmailNotifier(db storage.DatabaseRepo) *EmailNotifier {
-	return &EmailNotifier{DB: db}
+type EmailNotifier struct {
+	DB           storage.DatabaseRepo
+	Scheduler    Scheduler
+	RateProvider RateProvider
+	EmailSender  EmailSender
 }
 
-func NewEmailNotifierConfig() EmailNotifierConfig {
-	var cfg EmailNotifierConfig
-	if err := envconfig.Process("mailer", &cfg); err != nil {
-		log.Fatal(err)
-	}
-	return cfg
+type EmailSender interface {
+	Send(e *email.Email) error
 }
 
-func (c *EmailNotifierConfig) Validate() bool {
-	if c.Host == "" || c.Port == "" || c.From == "" || c.Password == "" {
-		return false
-	}
-	return true
+type RateProvider interface {
+	GetRate(from, to string) (float64, error)
 }
 
-// Start starts the mail sender.
+type Scheduler interface {
+	Start()
+	AddEverydayJob(task func(), minute int) error
+}
+
+func NewEmailNotifier(db storage.DatabaseRepo, sch Scheduler, rateProvider RateProvider, emailSender EmailSender) *EmailNotifier {
+	return &EmailNotifier{DB: db, Scheduler: sch, RateProvider: rateProvider, EmailSender: emailSender}
+}
+
 func (et *EmailNotifier) Start() error {
 	log.Println("Starting mail sender")
-	cfg := NewEmailNotifierConfig()
+	cfg, err := NewEmailNotifierConfig()
+	if err != nil {
+		return err
+	}
 
 	if !cfg.Validate() {
 		return fmt.Errorf("invalid mail config")
 	}
 
-	sch := scheduler.NewGoCronScheduler()
+	sch := et.Scheduler
 	sch.Start()
-	err := sch.AddEverydayJob(func() {
+	err = sch.AddEverydayJob(func() {
 		log.Println("Sending emails")
 
-		timezoneDiff := timezone.GetTimezoneDiff(timeToSend)
-
-		subs, err := et.DB.GetSubscribers(timezoneDiff)
-		if err != nil {
-			log.Printf("Error getting subscribers: %v\n", err)
+		localTime := time.Now().Hour()
+		timezoneDiff := timezone.GetTimezoneDiff(localTime, TimeToSend)
+		if err = timezone.ValidateTimezoneDiff(timezoneDiff); err != nil {
+			log.Printf("Error validating timezone diff: %v\n", err)
 			return
 		}
+
+		subs, er := et.DB.GetSubscribers(timezoneDiff)
+		if er != nil {
+			log.Printf("Error getting subscribers: %v\n", er)
+			return
+		}
+
 		et.sendEmails(cfg, subs)
 		log.Println("Emails sent")
-	}, minuteToSend)
+	}, MinuteToSend)
+	if err != nil {
+		return fmt.Errorf("failed to add everyday job: %w", err)
+	}
 
-	return err
+	return nil
 }
 
-// initPool initializes the email pool.
-func (et *EmailNotifier) initPool(cfg EmailNotifierConfig) (*email.Pool, chan<- *email.Email, *sync.WaitGroup, error) {
+func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string) {
+	rate, err := et.RateProvider.GetRate("USD", "UAH")
+	if err != nil {
+		log.Printf("Error getting rate: %v\n", err)
+		return
+	}
+	msgText := []byte("Current rate: " + fmt.Sprintf("%.2f", rate))
+
 	ch := make(chan *email.Email, bufferSize)
 	var wg sync.WaitGroup
-
-	p, err := email.NewPool(
-		fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
-		numWorkers,
-		smtp.PlainAuth("", cfg.From, cfg.Password, cfg.Host),
-	)
-	if err != nil {
-		return nil, nil, nil, err
-	}
 
 	for i := 0; i < numWorkers; i++ {
 		go func() {
 			for e := range ch {
-				err := p.Send(e, -1)
-				if err != nil {
+				if err := et.EmailSender.Send(e); err != nil {
 					log.Printf("Error sending email: %v\n", err)
 				}
 				wg.Done()
@@ -107,42 +103,16 @@ func (et *EmailNotifier) initPool(cfg EmailNotifierConfig) (*email.Pool, chan<- 
 		}()
 	}
 
-	return p, ch, &wg, nil
-}
-
-// sendEmail sends an email.
-func (et *EmailNotifier) sendEmail(ch chan<- *email.Email, wg *sync.WaitGroup, e *email.Email) {
-	wg.Add(1)
-	ch <- e
-}
-
-// sendEmails sends emails to the recipients.
-func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string) {
-	p, ch, wg, err := et.initPool(cfg)
-	if err != nil {
-		log.Printf("Error initializing email pool: %v\n", err)
-		return
-	}
-
-	provider := rateapi.NewCoinbaseProvider()
-
-	price, err := provider.GetRate("USD", "UAH")
-	if err != nil {
-		log.Printf("Error getting rate: %v\n", err)
-		return
-	}
-	msgText := []byte("Current rate: " + fmt.Sprintf("%.2f", price))
-
 	for _, recipient := range recipients {
 		e := email.NewEmail()
 		e.From = cfg.From
 		e.To = []string{recipient}
 		e.Subject = "Currency rate notification: USD to UAH"
 		e.Text = msgText
-		et.sendEmail(ch, wg, e)
+		wg.Add(1)
+		ch <- e
 	}
 
 	wg.Wait()
-	p.Close()
 	close(ch)
 }
