@@ -3,9 +3,12 @@ package main
 import (
 	"log"
 
+	"github.com/seemsod1/api-project/internal/rateapi"
+
+	"github.com/seemsod1/api-project/internal/scheduler"
+
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
 
-	"github.com/joho/godotenv"
 	"github.com/seemsod1/api-project/internal/config"
 	"github.com/seemsod1/api-project/internal/driver"
 	"github.com/seemsod1/api-project/internal/handlers"
@@ -14,9 +17,6 @@ import (
 
 // setup sets up the application
 func setup(_ *config.AppConfig) error {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
-	}
 	dr := driver.NewGORMDriver()
 
 	db, err := dr.ConnectSQL()
@@ -29,13 +29,26 @@ func setup(_ *config.AppConfig) error {
 		log.Println("Cannot run schemas migration! Dying...")
 		return err
 	}
-
+	provider := rateapi.NewCoinbaseProvider()
 	dbRepository := dbrepo.NewGormRepo(db.DB)
-	repo := handlers.NewRepo(dbRepository)
 
+	repo := handlers.NewRepo(dbRepository, provider)
 	handlers.NewHandlers(repo)
 
-	notification := notifier.NewEmailNotifier(dbRepository)
+	sch := scheduler.NewGoCronScheduler()
+	cfg, err := notifier.NewEmailNotifierConfig()
+	if err != nil {
+		log.Println("Cannot create mail sender config! Dying...")
+		return err
+	}
+
+	mailSender, err := notifier.NewSMTPEmailSender(cfg)
+	if err != nil {
+		log.Println("Cannot create mail sender! Dying...")
+		return err
+	}
+
+	notification := notifier.NewEmailNotifier(dbRepository, sch, provider, mailSender)
 	if err = notification.Start(); err != nil {
 		log.Println("Cannot start mail sender! Dying...")
 		return err

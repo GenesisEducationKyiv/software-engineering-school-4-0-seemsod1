@@ -13,15 +13,16 @@ import (
 
 // DatabaseConfig is a struct that holds the database configuration
 type DatabaseConfig struct {
-	DSN string
+	DSN string `required:"true"`
 }
 
-func NewDatabaseConfig() *DatabaseConfig {
+func NewDatabaseConfig() (*DatabaseConfig, error) {
 	var dbConfig DatabaseConfig
 	if err := envconfig.Process("DB", &dbConfig); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return &dbConfig
+
+	return &dbConfig, nil
 }
 
 func (dc *DatabaseConfig) Validate() bool {
@@ -39,7 +40,10 @@ func NewGORMDriver() *GORMDriver {
 
 // ConnectSQL connects to the database
 func (gd *GORMDriver) ConnectSQL() (*GORMDriver, error) {
-	cfg := NewDatabaseConfig()
+	cfg, err := NewDatabaseConfig()
+	if err != nil {
+		return nil, err
+	}
 
 	if !cfg.Validate() {
 		return nil, errors.New("invalid database configuration")
