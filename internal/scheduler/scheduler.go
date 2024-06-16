@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"log"
 	"strconv"
 
 	"github.com/go-co-op/gocron/v2"
@@ -13,11 +12,7 @@ type GoCron struct {
 }
 
 func NewGoCronScheduler() *GoCron {
-	sch, err := gocron.NewScheduler()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	sch, _ := gocron.NewScheduler()
 	return &GoCron{Scheduler: sch}
 }
 
