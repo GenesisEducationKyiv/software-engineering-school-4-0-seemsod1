@@ -20,11 +20,11 @@ const coinbaseURL = "https://api.coinbase.com/v2/prices/%s-%s/buy"
 
 // GetRate returns the current base to target currencies rate
 func (cb *CoinbaseProvider) GetRate(base, target string) (float64, error) {
-	if !validateRateParam(base) || !validateRateParam(target) {
+	if !cb.ValidateRateParam(base) || !cb.ValidateRateParam(target) {
 		return -1, fmt.Errorf("invalid rate parameters")
 	}
 
-	response, err := processGETRequest(fmt.Sprintf(coinbaseURL, base, target))
+	response, err := ProcessGETRequest(fmt.Sprintf(coinbaseURL, base, target))
 	if err != nil {
 		return -1, err
 	}
@@ -50,7 +50,7 @@ func (cb *CoinbaseProvider) GetRate(base, target string) (float64, error) {
 	return price, nil
 }
 
-func processGETRequest(url string) ([]byte, error) {
+func ProcessGETRequest(url string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -76,7 +76,7 @@ func processGETRequest(url string) ([]byte, error) {
 	return respBody, nil
 }
 
-func validateRateParam(code string) bool {
-	_, err := regexp.MatchString("^[A-Z]{3}$", code)
-	return err == nil
+func (cb *CoinbaseProvider) ValidateRateParam(code string) bool {
+	match, _ := regexp.MatchString("^[A-Z]{3}$", code)
+	return match
 }
