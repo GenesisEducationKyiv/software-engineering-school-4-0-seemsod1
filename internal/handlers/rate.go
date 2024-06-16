@@ -3,21 +3,20 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/seemsod1/api-project/internal/rateapi"
-
 	"github.com/go-chi/render"
 )
 
+type Provider interface {
+	GetRate(from, to string) (float64, error)
+}
+
 // Rate returns the current USD to UAH rate
 func (m *Repository) Rate(w http.ResponseWriter, r *http.Request) {
-	provider := rateapi.NewCoinbaseProvider()
-
-	price, err := provider.GetRate("USD", "UAH")
+	price, err := m.Provider.GetRate("USD", "UAH")
 	if err != nil {
 		http.Error(w, "Failed to get rate", http.StatusBadRequest)
 		return
 	}
-
 	w.WriteHeader(http.StatusOK)
 	render.JSON(w, r, newRateResponse(price))
 }

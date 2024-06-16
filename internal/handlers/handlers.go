@@ -9,13 +9,15 @@ var Repo *Repository
 
 // Repository is the repository struct
 type Repository struct {
-	DB storage.DatabaseRepo
+	DB       storage.DatabaseRepo
+	Provider Provider
 }
 
 // NewRepo creates a new repository with GORM
-func NewRepo(db storage.DatabaseRepo) *Repository {
+func NewRepo(db storage.DatabaseRepo, provider Provider) *Repository {
 	return &Repository{
-		DB: db,
+		DB:       db,
+		Provider: provider,
 	}
 }
 

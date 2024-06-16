@@ -1,60 +1,44 @@
 package handlers_test
 
 import (
-	"context"
-	"encoding/json"
-	"io"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/seemsod1/api-project/internal/handlers"
+	"github.com/seemsod1/api-project/internal/rateapi"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRate(t *testing.T) {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
+func TestRate_ProviderError(t *testing.T) {
+	mockProvider := rateapi.NewMockProvider()
+	repo := handlers.Repository{Provider: mockProvider}
 
-	server := httptest.NewServer(http.HandlerFunc(handlers.Repo.Rate))
-	defer server.Close()
+	handler := http.HandlerFunc(repo.Rate)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	mockProvider.On("GetRate", "USD", "UAH").Return(0.0, errors.New("provider error"))
 
-	req, err := http.NewRequestWithContext(ctx, "GET", server.URL, http.NoBody)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
+	req := httptest.NewRequest("GET", "/rate", http.NoBody)
+	rr := httptest.NewRecorder()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected status OK; got %v", resp.Status)
-	}
-	defer resp.Body.Close()
+	handler.ServeHTTP(rr, req)
 
-	b, err := io.ReadAll(resp.Body)
-	assert.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	mockProvider.AssertExpectations(t)
+}
 
-	type APIResponse struct {
-		Price float64 `json:"price"`
-	}
-	var apiResponse APIResponse
-	if err = json.Unmarshal(b, &apiResponse); err != nil {
-		t.Error(err)
-	}
+func TestRate_Success(t *testing.T) {
+	provider := rateapi.NewCoinbaseProvider()
+	repo := handlers.Repository{Provider: provider}
 
-	if apiResponse.Price == -1 {
-		t.Error("expected amount; got empty")
-	}
+	handler := http.HandlerFunc(repo.Rate)
 
-	if _, err = json.Marshal(apiResponse); err != nil {
-		t.Error(err)
-	}
+	req := httptest.NewRequest("GET", "/rate", http.NoBody)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), `"price":`)
 }
