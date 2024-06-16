@@ -30,7 +30,7 @@ func TestCoinbaseProvider_GetRate_InvalidParams(t *testing.T) {
 }
 
 func TestProcessGETRequest_Success(t *testing.T) {
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, `{"rate": 27.5}`)
 	}))
