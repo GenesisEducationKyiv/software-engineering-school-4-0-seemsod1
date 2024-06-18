@@ -1,24 +1,66 @@
 package driver
 
 import (
+	"errors"
 	"log"
 
-	"github.com/seemsod1/api-project/internal/config"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/seemsod1/api-project/internal/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-// DB is a struct that embeds the gorm.DB
-type DB struct {
-	SQL *gorm.DB
+// DatabaseConfig is a struct that holds the database configuration
+type DatabaseConfig struct {
+	DSN string `required:"true"`
 }
 
-var dbConn = &DB{}
+func NewDatabaseConfig() (*DatabaseConfig, error) {
+	var dbConfig DatabaseConfig
+	if err := envconfig.Process("DB", &dbConfig); err != nil {
+		return nil, err
+	}
+
+	return &dbConfig, nil
+}
+
+func (dc *DatabaseConfig) Validate() bool {
+	return dc.DSN != ""
+}
+
+// GORMDriver is a struct that embeds the gorm.DB
+type GORMDriver struct {
+	DB *gorm.DB
+}
+
+func NewGORMDriver() *GORMDriver {
+	return &GORMDriver{}
+}
+
+// ConnectSQL connects to the database
+func (gd *GORMDriver) ConnectSQL() (*GORMDriver, error) {
+	cfg, err := NewDatabaseConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if !cfg.Validate() {
+		return nil, errors.New("invalid database configuration")
+	}
+
+	d := gd.openDB(cfg)
+
+	dbConn := &GORMDriver{}
+
+	dbConn.DB = d
+
+	return dbConn, nil
+}
 
 // openDB opens a database connection
-func openDB(env *config.EnvVariables) *gorm.DB {
-	db, err := gorm.Open(postgres.Open(env.DSN), &gorm.Config{})
+func (gd *GORMDriver) openDB(cfg *DatabaseConfig) *gorm.DB {
+	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{})
 	if err != nil {
 		log.Fatal("error connecting to database: ", err)
 	}
@@ -26,11 +68,10 @@ func openDB(env *config.EnvVariables) *gorm.DB {
 	return db
 }
 
-// ConnectSQL connects to the database
-func ConnectSQL(env *config.EnvVariables) (*DB, error) {
-	d := openDB(env)
-
-	dbConn.SQL = d
-
-	return dbConn, nil
+func (gd *GORMDriver) RunMigrations() error {
+	err := gd.DB.AutoMigrate(&models.Subscriber{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

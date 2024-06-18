@@ -1,10 +1,7 @@
 package handlers
 
 import (
-	"github.com/seemsod1/api-project/internal/config"
-	"github.com/seemsod1/api-project/internal/driver"
 	"github.com/seemsod1/api-project/internal/storage"
-	"github.com/seemsod1/api-project/internal/storage/dbrepo"
 )
 
 // Repo is the repository used by the handlers
@@ -12,15 +9,15 @@ var Repo *Repository
 
 // Repository is the repository struct
 type Repository struct {
-	DB  storage.DatabaseRepo
-	App *config.AppConfig
+	DB       storage.DatabaseRepo
+	Provider Provider
 }
 
-// NewRepo creates a new Repository
-func NewRepo(a *config.AppConfig, db *driver.DB) *Repository {
+// NewRepo creates a new repository with GORM
+func NewRepo(db storage.DatabaseRepo, provider Provider) *Repository {
 	return &Repository{
-		App: a,
-		DB:  dbrepo.NewGormRepo(db.SQL, a),
+		DB:       db,
+		Provider: provider,
 	}
 }
 

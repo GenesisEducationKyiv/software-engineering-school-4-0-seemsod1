@@ -1,7 +1,6 @@
 package dbrepo
 
 import (
-	"github.com/seemsod1/api-project/internal/config"
 	"github.com/seemsod1/api-project/internal/storage"
 	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
@@ -9,8 +8,7 @@ import (
 
 // gormDBRepo is a struct that embeds the AppConfig and the gorm.DB
 type gormDBRepo struct {
-	App *config.AppConfig
-	DB  *gorm.DB
+	DB *gorm.DB
 }
 
 type MockDB struct {
@@ -18,10 +16,9 @@ type MockDB struct {
 }
 
 // NewGormRepo creates a new gormDBRepo
-func NewGormRepo(conn *gorm.DB, a *config.AppConfig) storage.DatabaseRepo {
+func NewGormRepo(conn *gorm.DB) storage.DatabaseRepo {
 	return &gormDBRepo{
-		App: a,
-		DB:  conn,
+		DB: conn,
 	}
 }
 

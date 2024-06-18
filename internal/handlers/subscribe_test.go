@@ -11,136 +11,145 @@ import (
 	"github.com/seemsod1/api-project/internal/handlers"
 	"github.com/seemsod1/api-project/internal/models"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
+	"github.com/seemsod1/api-project/internal/timezone"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestSubscribe(t *testing.T) {
-	var body bytes.Buffer
-
+func TestSubscribeIntegration(t *testing.T) {
 	mockDB := dbrepo.NewMockDB()
 	repo := handlers.Repository{DB: mockDB}
-
-	// no form data
-	req := httptest.NewRequest(http.MethodPost, "/subscribe", &body)
-	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(repo.Subscribe)
+
+	testCases := []struct {
+		name       string
+		formFields map[string]string
+		headers    map[string]string
+		mockReturn error
+		wantStatus int
+	}{
+		{
+			name:       "no form data",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "empty form data",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid form data",
+			formFields: map[string]string{
+				"abc": "123",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "empty email",
+			formFields: map[string]string{
+				"email": "",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid email",
+			formFields: map[string]string{
+				"email": "abc",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "correct email but invalid timezone",
+			formFields: map[string]string{
+				"email": "test@mail.com",
+			},
+			headers: map[string]string{
+				"Accept-Timezone": "abc",
+			},
+			mockReturn: nil,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "correct email and timezone",
+			formFields: map[string]string{
+				"email": "test@mail.com",
+			},
+			headers: map[string]string{
+				"Accept-Timezone": "UTC",
+			},
+			mockReturn: nil,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "duplicated email",
+			formFields: map[string]string{
+				"email": "test@mail.com",
+			},
+			headers: map[string]string{
+				"Accept-Timezone": "UTC",
+			},
+			mockReturn: customerrors.ErrDuplicatedKey,
+			wantStatus: http.StatusConflict,
+		},
+		{
+			name: "internal error",
+			formFields: map[string]string{
+				"email": "test@mail.com",
+			},
+			mockReturn: assert.AnError,
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+
+			for key, value := range tt.formFields {
+				err := writer.WriteField(key, value)
+				require.NoError(t, err)
+			}
+
+			err := writer.Close()
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, "/subscribe", &body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+
+			for key, value := range tt.headers {
+				req.Header.Set(key, value)
+			}
+
+			rr := httptest.NewRecorder()
+
+			if tt.wantStatus != http.StatusBadRequest {
+				offset := 0
+				if timezoneStr, ok := tt.headers["Accept-Timezone"]; ok {
+					req.Header.Set("Accept-Timezone", timezoneStr)
+					offset, err = timezone.ProcessTimezoneHeader(req)
+					require.NoError(t, err)
+				}
+				mockDB.ExpectedCalls = nil
+				mockDB.On("AddSubscriber", models.Subscriber{
+					Email:    tt.formFields["email"],
+					Timezone: offset,
+				}).Return(tt.mockReturn)
+			}
+
+			handler.ServeHTTP(rr, req)
+			assert.Equal(t, tt.wantStatus, rr.Code)
+		})
+	}
+}
+
+func TestSubscribe_ErrorParsingForm(t *testing.T) {
+	mockDB := dbrepo.NewMockDB()
+	repo := handlers.Repository{DB: mockDB}
+	handler := http.HandlerFunc(repo.Subscribe)
+
+	req := httptest.NewRequest(http.MethodPost, "/subscribe", http.NoBody)
+	rr := httptest.NewRecorder()
+
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-
-	// empty form data
-	body.Reset()
-	writer := multipart.NewWriter(&body)
-	err := writer.Close()
-	assert.NoError(t, err)
-
-	req = httptest.NewRequest(http.MethodPost, "/subscribe", http.NoBody)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-
-	// invalid form data
-	body.Reset()
-	writer = multipart.NewWriter(&body)
-	_, err = writer.CreateFormFile("abc", "123")
-	assert.NoError(t, err)
-	err = writer.Close()
-	assert.NoError(t, err)
-
-	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-
-	// empty email
-	body.Reset()
-	writer = multipart.NewWriter(&body)
-	err = writer.WriteField("email", "")
-	assert.NoError(t, err)
-	err = writer.Close()
-	assert.NoError(t, err)
-
-	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-
-	// invalid email
-	body.Reset()
-	writer = multipart.NewWriter(&body)
-	err = writer.WriteField("email", "abc")
-	assert.NoError(t, err)
-	err = writer.Close()
-	assert.NoError(t, err)
-
-	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-
-	// correct email but invalid timezone
-	body.Reset()
-	writer = multipart.NewWriter(&body)
-	err = writer.WriteField("email", "test@mail.com")
-	assert.NoError(t, err)
-	err = writer.Close()
-	assert.NoError(t, err)
-
-	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Accept-Timezone", "abc")
-	rr = httptest.NewRecorder()
-
-	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(nil)
-
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-
-	// correct email and timezone
-	body.Reset()
-	writer = multipart.NewWriter(&body)
-	err = writer.WriteField("email", "test@mail.com")
-	assert.NoError(t, err)
-	err = writer.Close()
-	assert.NoError(t, err)
-
-	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Accept-Timezone", "UTC")
-	rr = httptest.NewRecorder()
-
-	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(nil)
-
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	// duplicated email
-	rr = httptest.NewRecorder()
-
-	mockDB.ExpectedCalls = nil
-	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(customerrors.ErrDuplicatedKey)
-
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusConflict, rr.Code)
-
-	// internal error
-	body.Reset()
-	writer = multipart.NewWriter(&body)
-	err = writer.WriteField("email", "test@mail.com")
-	assert.NoError(t, err)
-	err = writer.Close()
-	assert.NoError(t, err)
-
-	req = httptest.NewRequest(http.MethodPost, "/subscribe", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	rr = httptest.NewRecorder()
-
-	mockDB.ExpectedCalls = nil
-	mockDB.On("AddSubscriber", models.Subscriber{Email: "test@mail.com"}).Return(assert.AnError)
-
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 }
