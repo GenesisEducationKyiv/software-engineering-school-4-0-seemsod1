@@ -1,6 +1,7 @@
 package notifier
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -30,7 +31,7 @@ type EmailSender interface {
 }
 
 type RateService interface {
-	GetRate(from, to string) (float64, error)
+	GetRate(ctx context.Context, base, target string) (float64, error)
 }
 
 type Scheduler interface {
@@ -46,7 +47,7 @@ func (et *EmailNotifier) Start() error {
 	log.Println("Starting mail sender")
 	cfg, err := NewEmailNotifierConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("creating mail sender config: %w", err)
 	}
 
 	if !cfg.Validate() {
@@ -75,14 +76,17 @@ func (et *EmailNotifier) Start() error {
 		log.Println("Emails sent")
 	}, MinuteToSend)
 	if err != nil {
-		return fmt.Errorf("failed to add everyday job: %w", err)
+		return fmt.Errorf("adding everyday job: %w", err)
 	}
 
 	return nil
 }
 
 func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string) {
-	rate, err := et.RateService.GetRate("USD", "UAH")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rate, err := et.RateService.GetRate(ctx, "USD", "UAH")
 	if err != nil {
 		log.Printf("Error getting rate: %v\n", err)
 		return

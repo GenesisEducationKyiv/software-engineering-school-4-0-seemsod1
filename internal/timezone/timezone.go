@@ -1,6 +1,7 @@
 package timezone
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,17 +33,17 @@ func adjustTimeZoneDiff(timeZoneDiff int) int {
 func ProcessTimezoneHeader(r *http.Request) (int, error) {
 	userTimezone := r.Header.Get("Accept-Timezone")
 	if userTimezone == "" {
-		return 0, nil
+		return 0, fmt.Errorf("timezone header is empty")
 	}
 
 	offsetStr, err := extractOffsetString(userTimezone)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("extracting offset string: %w", err)
 	}
 
 	offset, err := parseOffset(offsetStr)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("parsing offset: %w", err)
 	}
 
 	return offset, nil

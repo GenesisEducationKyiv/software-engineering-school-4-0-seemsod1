@@ -20,14 +20,14 @@ func NewCoinbaseProvider() *CoinbaseProvider {
 const coinbaseURL = "https://api.coinbase.com/v2/prices/%s-%s/buy"
 
 // GetRate returns the current base to target currencies rate
-func (cb *CoinbaseProvider) GetRate(base, target string) (float64, error) {
+func (cb *CoinbaseProvider) GetRate(ctx context.Context, base, target string) (float64, error) {
 	if !cb.ValidateRateParam(base) || !cb.ValidateRateParam(target) {
 		return -1, fmt.Errorf("invalid rate parameters")
 	}
 
-	response, err := ProcessGETRequest(fmt.Sprintf(coinbaseURL, base, target))
+	response, err := ProcessGETRequest(ctx, fmt.Sprintf(coinbaseURL, base, target))
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("process get request: %w", err)
 	}
 
 	type CoinbaseAPIResponse struct {
@@ -40,19 +40,19 @@ func (cb *CoinbaseProvider) GetRate(base, target string) (float64, error) {
 	var coinbaseAPIResponse CoinbaseAPIResponse
 
 	if marshalErr := json.Unmarshal(response, &coinbaseAPIResponse); marshalErr != nil {
-		return -1, marshalErr
+		return -1, fmt.Errorf("unmarshaling response: %w", marshalErr)
 	}
 
 	var price float64
 	if _, err = fmt.Sscanf(coinbaseAPIResponse.Data.Amount, "%f", &price); err != nil {
-		return -1, err
+		return -1, fmt.Errorf("parsing price: %w", err)
 	}
 
 	return price, nil
 }
 
-func ProcessGETRequest(url string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func ProcessGETRequest(ctx context.Context, url string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	client := &http.Client{}
@@ -60,12 +60,12 @@ func ProcessGETRequest(url string) ([]byte, error) {
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating request: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("making request: %w", err)
 	}
 	defer func() {
 		if err = resp.Body.Close(); err != nil {
@@ -75,7 +75,7 @@ func ProcessGETRequest(url string) ([]byte, error) {
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading response body: %w", err)
 	}
 
 	return respBody, nil
@@ -96,14 +96,14 @@ func NewPrivatBankProvider() *PrivatBankProvider {
 const privatBankURL = "https://api.privatbank.ua/p24api/pubinfo?json&exchange&coursid=5"
 
 // GetRate returns the current base to target currencies rate
-func (pb *PrivatBankProvider) GetRate(base, target string) (float64, error) {
+func (pb *PrivatBankProvider) GetRate(ctx context.Context, base, target string) (float64, error) {
 	if !pb.ValidateRateParam(base) || !pb.ValidateRateParam(target) {
 		return -1, fmt.Errorf("invalid rate parameters")
 	}
 
-	response, err := ProcessGETRequest(privatBankURL)
+	response, err := ProcessGETRequest(ctx, privatBankURL)
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("process get request: %w", err)
 	}
 
 	type PrivatBankAPIResponse struct {
@@ -115,20 +115,20 @@ func (pb *PrivatBankProvider) GetRate(base, target string) (float64, error) {
 	var privatBankAPIResponse []PrivatBankAPIResponse
 
 	if marshalErr := json.Unmarshal(response, &privatBankAPIResponse); marshalErr != nil {
-		return -1, marshalErr
+		return -1, fmt.Errorf("unmarshaling response: %w", marshalErr)
 	}
 
 	for _, rate := range privatBankAPIResponse {
 		if rate.Ccy == base && rate.BaseCcy == target {
 			var price float64
 			if _, err = fmt.Sscanf(rate.BuyRate, "%f", &price); err != nil {
-				return -1, err
+				return -1, fmt.Errorf("parsing price: %w", err)
 			}
 			return price, nil
 		}
 	}
 
-	return -1, fmt.Errorf("rate not found")
+	return -1, fmt.Errorf("get rate: rate not found")
 }
 
 func (pb *PrivatBankProvider) ValidateRateParam(code string) bool {
@@ -146,14 +146,14 @@ func NewNBUProvider() *NBUProvider {
 const nbuURL = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchangenew?valcode=%s&json"
 
 // GetRate returns the current base to target currencies rate
-func (nbu *NBUProvider) GetRate(base, target string) (float64, error) {
+func (nbu *NBUProvider) GetRate(ctx context.Context, base, target string) (float64, error) {
 	if !nbu.ValidateRateParam(base) || !nbu.ValidateRateParam(target) {
 		return -1, fmt.Errorf("invalid rate parameters")
 	}
 
-	response, err := ProcessGETRequest(fmt.Sprintf(nbuURL, base))
+	response, err := ProcessGETRequest(ctx, fmt.Sprintf(nbuURL, base))
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("process get request: %w", err)
 	}
 
 	type NBUAPIResponse struct {
@@ -162,7 +162,7 @@ func (nbu *NBUProvider) GetRate(base, target string) (float64, error) {
 	var nbuAPIResponse []NBUAPIResponse
 
 	if marshalErr := json.Unmarshal(response, &nbuAPIResponse); marshalErr != nil {
-		return -1, marshalErr
+		return -1, fmt.Errorf("unmarshaling response: %w", marshalErr)
 	}
 
 	return nbuAPIResponse[0].Rate, nil

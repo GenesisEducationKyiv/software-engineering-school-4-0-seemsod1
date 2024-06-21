@@ -1,6 +1,9 @@
 package notifier
 
-import "github.com/kelseyhightower/envconfig"
+import (
+	"fmt"
+	"github.com/kelseyhightower/envconfig"
+)
 
 type EmailNotifierConfig struct {
 	Host     string `required:"true"`
@@ -12,7 +15,7 @@ type EmailNotifierConfig struct {
 func NewEmailNotifierConfig() (EmailNotifierConfig, error) {
 	var cfg EmailNotifierConfig
 	if err := envconfig.Process("mailer", &cfg); err != nil {
-		return cfg, err
+		return cfg, fmt.Errorf("processing mailer config: %w", err)
 	}
 	return cfg, nil
 }

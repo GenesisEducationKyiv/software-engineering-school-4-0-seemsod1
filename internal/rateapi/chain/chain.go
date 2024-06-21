@@ -1,11 +1,12 @@
 package chain
 
 import (
+	"context"
 	"errors"
 )
 
 type RateService interface {
-	GetRate(base, target string) (float64, error)
+	GetRate(ctx context.Context, base, target string) (float64, error)
 }
 
 type Chain interface {
@@ -28,15 +29,15 @@ func (b *BaseChain) SetNext(chainInterface Chain) {
 	b.next = chainInterface
 }
 
-func (b *BaseChain) GetRate(base, target string) (float64, error) {
-	rate, err := b.rateService.GetRate(base, target)
+func (b *BaseChain) GetRate(ctx context.Context, base, target string) (float64, error) {
+	rate, err := b.rateService.GetRate(ctx, base, target)
 	if err != nil {
 		next := b.next
 		if next == nil {
 			return -1, ErrNoRateProviders
 		}
 
-		return next.GetRate(base, target)
+		return next.GetRate(ctx, base, target)
 	}
 	return rate, nil
 }

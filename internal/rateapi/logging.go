@@ -1,11 +1,12 @@
 package rateapi
 
 import (
+	"context"
 	"log"
 )
 
 type RateService interface {
-	GetRate(base, target string) (float64, error)
+	GetRate(ctx context.Context, base, target string) (float64, error)
 }
 
 // LoggingClient is a client that logs the responses
@@ -21,8 +22,8 @@ func NewLoggingClient(name string, rateService RateService) *LoggingClient {
 	}
 }
 
-func (l *LoggingClient) GetRate(base, target string) (float64, error) {
-	rate, err := l.rateService.GetRate(base, target)
+func (l *LoggingClient) GetRate(ctx context.Context, base, target string) (float64, error) {
+	rate, err := l.rateService.GetRate(ctx, base, target)
 	if err != nil {
 		log.Printf("%s: Response: {error: %v}", l.name, err)
 		return -1, err

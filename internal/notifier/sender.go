@@ -18,7 +18,7 @@ func NewSMTPEmailSender(cfg EmailNotifierConfig) (*SMTPEmailSender, error) {
 		smtp.PlainAuth("", cfg.From, cfg.Password, cfg.Host),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating email pool: %w", err)
 	}
 	return &SMTPEmailSender{Pool: p}, nil
 }
