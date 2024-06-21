@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"fmt"
+
 	"github.com/kelseyhightower/envconfig"
 )
 

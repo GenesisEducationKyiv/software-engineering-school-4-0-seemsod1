@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -17,7 +18,7 @@ func TestRate_ProviderError(t *testing.T) {
 
 	handler := http.HandlerFunc(repo.Rate)
 
-	mockProvider.On("GetRate", "USD", "UAH").Return(0.0, errors.New("provider error"))
+	mockProvider.On("GetRate", context.Background(), "USD", "UAH").Return(0.0, errors.New("provider error"))
 
 	req := httptest.NewRequest("GET", "/rate", http.NoBody)
 	rr := httptest.NewRecorder()

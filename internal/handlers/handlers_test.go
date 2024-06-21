@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -18,8 +19,8 @@ func newMockProvider() *mockProvider {
 	return &mockProvider{}
 }
 
-func (mp *mockProvider) GetRate(base, target string) (float64, error) {
-	args := mp.Called(base, target)
+func (mp *mockProvider) GetRate(ctx context.Context, base, target string) (float64, error) {
+	args := mp.Called(ctx, base, target)
 	return args.Get(0).(float64), args.Error(1)
 }
 

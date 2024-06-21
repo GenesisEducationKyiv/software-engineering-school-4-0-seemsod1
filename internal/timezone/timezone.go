@@ -1,13 +1,15 @@
 package timezone
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-
-	customerrors "github.com/seemsod1/api-project/internal/errors"
 )
+
+// ErrInvalidTimezone is returned when the timezone is invalid.
+var ErrInvalidTimezone = errors.New("invalid timezone")
 
 // GetTimezoneDiff returns the difference between the local time and the specified hour.
 func GetTimezoneDiff(localHour, needHour int) int {
@@ -33,7 +35,7 @@ func adjustTimeZoneDiff(timeZoneDiff int) int {
 func ProcessTimezoneHeader(r *http.Request) (int, error) {
 	userTimezone := r.Header.Get("Accept-Timezone")
 	if userTimezone == "" {
-		return 0, fmt.Errorf("timezone header is empty")
+		return 0, nil
 	}
 
 	offsetStr, err := extractOffsetString(userTimezone)
@@ -58,21 +60,21 @@ func extractOffsetString(userTimezone string) (string, error) {
 		(strings.HasPrefix(userTimezone, "UTC+") || strings.HasPrefix(userTimezone, "UTC-")):
 		return userTimezone[3:], nil
 	default:
-		return "", customerrors.ErrInvalidTimezone
+		return "", ErrInvalidTimezone
 	}
 }
 
 func parseOffset(offsetStr string) (int, error) {
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil || offset > 12 || offset < -12 {
-		return 0, customerrors.ErrInvalidTimezone
+		return 0, ErrInvalidTimezone
 	}
 	return offset, nil
 }
 
 func ValidateTimezoneDiff(diff int) error {
 	if diff > 12 || diff < -12 {
-		return customerrors.ErrInvalidTimezone
+		return ErrInvalidTimezone
 	}
 	return nil
 }

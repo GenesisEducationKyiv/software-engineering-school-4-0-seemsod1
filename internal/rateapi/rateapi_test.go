@@ -1,6 +1,7 @@
 package rateapi_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +17,7 @@ import (
 func TestCoinbaseProvider_GetRate(t *testing.T) {
 	provider := rateapi.NewCoinbaseProvider()
 
-	price, err := provider.GetRate("USD", "UAH")
+	price, err := provider.GetRate(context.Background(), "USD", "UAH")
 	require.NoError(t, err)
 	require.NotEqual(t, -1, price)
 }
@@ -24,7 +25,7 @@ func TestCoinbaseProvider_GetRate(t *testing.T) {
 func TestCoinbaseProvider_GetRate_InvalidParams(t *testing.T) {
 	provider := rateapi.NewCoinbaseProvider()
 
-	price, err := provider.GetRate("USD", "abc")
+	price, err := provider.GetRate(context.Background(), "USD", "abc")
 	require.Error(t, err)
 	require.NotEqual(t, -1, price)
 }
@@ -39,7 +40,7 @@ func TestProcessGETRequest_Success(t *testing.T) {
 	base := "USD"
 	target := "UAH"
 
-	response, err := rateapi.ProcessGETRequest(fmt.Sprintf("%s/%s/%s", mockServer.URL, base, target))
+	response, err := rateapi.ProcessGETRequest(context.Background(), fmt.Sprintf("%s/%s/%s", mockServer.URL, base, target))
 
 	assert.NoError(t, err)
 
