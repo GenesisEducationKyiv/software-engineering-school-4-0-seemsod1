@@ -12,8 +12,8 @@ import (
 )
 
 func TestRate_ProviderError(t *testing.T) {
-	mockProvider := rateapi.NewMockProvider()
-	repo := handlers.Repository{Provider: mockProvider}
+	mockProvider := newMockProvider()
+	repo := handlers.Repository{RateService: mockProvider}
 
 	handler := http.HandlerFunc(repo.Rate)
 
@@ -30,7 +30,7 @@ func TestRate_ProviderError(t *testing.T) {
 
 func TestRate_Success(t *testing.T) {
 	provider := rateapi.NewCoinbaseProvider()
-	repo := handlers.Repository{Provider: provider}
+	repo := handlers.Repository{RateService: provider}
 
 	handler := http.HandlerFunc(repo.Rate)
 

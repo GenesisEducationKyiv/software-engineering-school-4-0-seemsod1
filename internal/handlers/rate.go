@@ -6,13 +6,13 @@ import (
 	"github.com/go-chi/render"
 )
 
-type Provider interface {
+type RateService interface {
 	GetRate(from, to string) (float64, error)
 }
 
 // Rate returns the current USD to UAH rate
 func (m *Repository) Rate(w http.ResponseWriter, r *http.Request) {
-	price, err := m.Provider.GetRate("USD", "UAH")
+	price, err := m.RateService.GetRate("USD", "UAH")
 	if err != nil {
 		http.Error(w, "Failed to get rate", http.StatusBadRequest)
 		return

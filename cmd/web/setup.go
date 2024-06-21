@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/seemsod1/api-project/internal/rateapi/chain"
 	"log"
 
 	"github.com/seemsod1/api-project/internal/rateapi"
@@ -29,10 +30,25 @@ func setup(_ *config.AppConfig) error {
 		log.Println("Cannot run schemas migration! Dying...")
 		return err
 	}
-	provider := rateapi.NewCoinbaseProvider()
+	CoinBaseProvider := rateapi.NewLoggingClient("api.coinbase.com",
+		rateapi.NewCoinbaseProvider())
+
+	PrivatBankProvider := rateapi.NewLoggingClient("api.privatbank.ua",
+		rateapi.NewPrivatBankProvider())
+
+	NBUProvider := rateapi.NewLoggingClient("bank.gov.ua",
+		rateapi.NewNBUProvider())
+
+	BaseChain := chain.NewBaseChain(CoinBaseProvider)
+	SecondChain := chain.NewBaseChain(PrivatBankProvider)
+	ThirdChain := chain.NewBaseChain(NBUProvider)
+
+	BaseChain.SetNext(SecondChain)
+	SecondChain.SetNext(ThirdChain)
+
 	dbRepository := dbrepo.NewGormRepo(db.DB)
 
-	repo := handlers.NewRepo(dbRepository, provider)
+	repo := handlers.NewRepo(dbRepository, BaseChain)
 	handlers.NewHandlers(repo)
 
 	sch := scheduler.NewGoCronScheduler()
@@ -48,7 +64,7 @@ func setup(_ *config.AppConfig) error {
 		return err
 	}
 
-	notification := notifier.NewEmailNotifier(dbRepository, sch, provider, mailSender)
+	notification := notifier.NewEmailNotifier(dbRepository, sch, BaseChain, mailSender)
 	if err = notification.Start(); err != nil {
 		log.Println("Cannot start mail sender! Dying...")
 		return err

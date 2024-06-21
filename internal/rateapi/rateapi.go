@@ -80,3 +80,90 @@ func (cb *CoinbaseProvider) ValidateRateParam(code string) bool {
 	match, _ := regexp.MatchString("^[A-Z]{3}$", code)
 	return match
 }
+
+// PrivatBankProvider is a provider for fetching exchange rates from PrivatBank
+type PrivatBankProvider struct{}
+
+func NewPrivatBankProvider() *PrivatBankProvider {
+	return &PrivatBankProvider{}
+}
+
+const privatBankURL = "https://api.privatbank.ua/p24api/pubinfo?json&exchange&coursid=5"
+
+// GetRate returns the current base to target currencies rate
+func (pb *PrivatBankProvider) GetRate(base, target string) (float64, error) {
+	if !pb.ValidateRateParam(base) || !pb.ValidateRateParam(target) {
+		return -1, fmt.Errorf("invalid rate parameters")
+	}
+
+	response, err := ProcessGETRequest(privatBankURL)
+	if err != nil {
+		return -1, err
+	}
+
+	type PrivatBankAPIResponse struct {
+		Ccy      string `json:"ccy"`
+		BaseCcy  string `json:"base_ccy"`
+		BuyRate  string `json:"buy"`
+		SaleRate string `json:"sale"`
+	}
+	var privatBankAPIResponse []PrivatBankAPIResponse
+
+	if marshalErr := json.Unmarshal(response, &privatBankAPIResponse); marshalErr != nil {
+		return -1, marshalErr
+	}
+
+	for _, rate := range privatBankAPIResponse {
+		if rate.Ccy == base && rate.BaseCcy == target {
+			var price float64
+			if _, err = fmt.Sscanf(rate.BuyRate, "%f", &price); err != nil {
+				return -1, err
+			}
+			return price, nil
+		}
+	}
+
+	return -1, fmt.Errorf("rate not found")
+}
+
+func (pb *PrivatBankProvider) ValidateRateParam(code string) bool {
+	match, _ := regexp.MatchString("^[A-Z]{3}$", code)
+	return match
+}
+
+// NBUProvider is a provider for fetching exchange rates from the National Bank of Ukraine
+type NBUProvider struct{}
+
+func NewNBUProvider() *NBUProvider {
+	return &NBUProvider{}
+}
+
+const nbuURL = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchangenew?valcode=%s&json"
+
+// GetRate returns the current base to target currencies rate
+func (nbu *NBUProvider) GetRate(base, target string) (float64, error) {
+	if !nbu.ValidateRateParam(base) || !nbu.ValidateRateParam(target) {
+		return -1, fmt.Errorf("invalid rate parameters")
+	}
+
+	response, err := ProcessGETRequest(fmt.Sprintf(nbuURL, base))
+	if err != nil {
+		return -1, err
+	}
+
+	type NBUAPIResponse struct {
+		Rate float64 `json:"rate"`
+	}
+	var nbuAPIResponse []NBUAPIResponse
+
+	if marshalErr := json.Unmarshal(response, &nbuAPIResponse); marshalErr != nil {
+		return -1, marshalErr
+	}
+
+	return nbuAPIResponse[0].Rate, nil
+}
+
+func (nbu *NBUProvider) ValidateRateParam(code string) bool {
+	match, _ := regexp.MatchString("^[A-Z]{3}$", code)
+	return match
+}

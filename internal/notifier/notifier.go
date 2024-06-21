@@ -19,17 +19,17 @@ const (
 )
 
 type EmailNotifier struct {
-	DB           storage.DatabaseRepo
-	Scheduler    Scheduler
-	RateProvider RateProvider
-	EmailSender  EmailSender
+	DB          storage.DatabaseRepo
+	Scheduler   Scheduler
+	RateService RateService
+	EmailSender EmailSender
 }
 
 type EmailSender interface {
 	Send(e *email.Email) error
 }
 
-type RateProvider interface {
+type RateService interface {
 	GetRate(from, to string) (float64, error)
 }
 
@@ -38,8 +38,8 @@ type Scheduler interface {
 	AddEverydayJob(task func(), minute int) error
 }
 
-func NewEmailNotifier(db storage.DatabaseRepo, sch Scheduler, rateProvider RateProvider, emailSender EmailSender) *EmailNotifier {
-	return &EmailNotifier{DB: db, Scheduler: sch, RateProvider: rateProvider, EmailSender: emailSender}
+func NewEmailNotifier(db storage.DatabaseRepo, sch Scheduler, rateService RateService, emailSender EmailSender) *EmailNotifier {
+	return &EmailNotifier{DB: db, Scheduler: sch, RateService: rateService, EmailSender: emailSender}
 }
 
 func (et *EmailNotifier) Start() error {
@@ -82,7 +82,7 @@ func (et *EmailNotifier) Start() error {
 }
 
 func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string) {
-	rate, err := et.RateProvider.GetRate("USD", "UAH")
+	rate, err := et.RateService.GetRate("USD", "UAH")
 	if err != nil {
 		log.Printf("Error getting rate: %v\n", err)
 		return
