@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/seemsod1/api-project/internal/rateapi/chain"
 	"log"
+
+	"github.com/seemsod1/api-project/internal/rateapi/chain"
 
 	"github.com/seemsod1/api-project/internal/rateapi"
 

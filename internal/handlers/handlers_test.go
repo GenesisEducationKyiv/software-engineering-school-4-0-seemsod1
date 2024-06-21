@@ -1,8 +1,9 @@
 package handlers_test
 
 import (
-	"github.com/stretchr/testify/mock"
 	"testing"
+
+	"github.com/stretchr/testify/mock"
 
 	"github.com/seemsod1/api-project/internal/handlers"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
