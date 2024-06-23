@@ -26,18 +26,20 @@ type EmailNotifier struct {
 	EmailSender EmailSender
 }
 
-type EmailSender interface {
-	Send(e *email.Email) error
-}
+type (
+	EmailSender interface {
+		Send(e *email.Email) error
+	}
 
-type RateService interface {
-	GetRate(ctx context.Context, base, target string) (float64, error)
-}
+	RateService interface {
+		GetRate(ctx context.Context, base, target string) (float64, error)
+	}
 
-type Scheduler interface {
-	Start()
-	AddEverydayJob(task func(), minute int) error
-}
+	Scheduler interface {
+		Start()
+		AddEverydayJob(task func(), minute int) error
+	}
+)
 
 func NewEmailNotifier(db storage.DatabaseRepo, sch Scheduler, rateService RateService, emailSender EmailSender) *EmailNotifier {
 	return &EmailNotifier{DB: db, Scheduler: sch, RateService: rateService, EmailSender: emailSender}

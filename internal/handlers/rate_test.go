@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/seemsod1/api-project/internal/handlers"
-	"github.com/seemsod1/api-project/internal/rateapi"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +29,9 @@ func TestRate_ProviderError(t *testing.T) {
 }
 
 func TestRate_Success(t *testing.T) {
-	provider := rateapi.NewCoinbaseProvider()
+	provider := newMockProvider()
+	provider.On("GetRate", context.Background(), "USD", "UAH").Return(27.6, nil)
+
 	repo := handlers.Repository{RateService: provider}
 
 	handler := http.HandlerFunc(repo.Rate)
