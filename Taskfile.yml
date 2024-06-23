@@ -83,3 +83,11 @@ tasks:
         cmds:
             - docker-compose down
         method: none
+
+  fumpt:
+    desc: "Run gofumpt to format the code"
+    aliases: [f]
+    sources:
+      - "**/*.go"
+    cmds:
+      - gofumpt -l -w .
