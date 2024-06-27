@@ -11,13 +11,15 @@ import (
 	"time"
 )
 
-type CoinbaseProvider struct{}
-
-func NewCoinbaseProvider() *CoinbaseProvider {
-	return &CoinbaseProvider{}
+type CoinbaseProvider struct {
+	URL string
 }
 
-const coinbaseURL = "https://api.coinbase.com/v2/prices/%s-%s/buy"
+func NewCoinbaseProvider(url string) *CoinbaseProvider {
+	return &CoinbaseProvider{
+		URL: url,
+	}
+}
 
 // GetRate returns the current base to target currencies rate
 func (cb *CoinbaseProvider) GetRate(ctx context.Context, base, target string) (float64, error) {
@@ -25,7 +27,7 @@ func (cb *CoinbaseProvider) GetRate(ctx context.Context, base, target string) (f
 		return -1, fmt.Errorf("invalid rate parameters")
 	}
 
-	response, err := ProcessGETRequest(ctx, fmt.Sprintf(coinbaseURL, base, target))
+	response, err := ProcessGETRequest(ctx, fmt.Sprintf(cb.URL, base, target))
 	if err != nil {
 		return -1, fmt.Errorf("process get request: %w", err)
 	}
@@ -87,13 +89,15 @@ func (cb *CoinbaseProvider) ValidateRateParam(code string) bool {
 }
 
 // PrivatBankProvider is a provider for fetching exchange rates from PrivatBank
-type PrivatBankProvider struct{}
-
-func NewPrivatBankProvider() *PrivatBankProvider {
-	return &PrivatBankProvider{}
+type PrivatBankProvider struct {
+	URL string
 }
 
-const privatBankURL = "https://api.privatbank.ua/p24api/pubinfo?json&exchange&coursid=5"
+func NewPrivatBankProvider(url string) *PrivatBankProvider {
+	return &PrivatBankProvider{
+		URL: url,
+	}
+}
 
 // GetRate returns the current base to target currencies rate
 func (pb *PrivatBankProvider) GetRate(ctx context.Context, base, target string) (float64, error) {
@@ -101,7 +105,7 @@ func (pb *PrivatBankProvider) GetRate(ctx context.Context, base, target string) 
 		return -1, fmt.Errorf("invalid rate parameters")
 	}
 
-	response, err := ProcessGETRequest(ctx, privatBankURL)
+	response, err := ProcessGETRequest(ctx, pb.URL)
 	if err != nil {
 		return -1, fmt.Errorf("process get request: %w", err)
 	}
@@ -137,13 +141,15 @@ func (pb *PrivatBankProvider) ValidateRateParam(code string) bool {
 }
 
 // NBUProvider is a provider for fetching exchange rates from the National Bank of Ukraine
-type NBUProvider struct{}
-
-func NewNBUProvider() *NBUProvider {
-	return &NBUProvider{}
+type NBUProvider struct {
+	URL string
 }
 
-const nbuURL = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchangenew?valcode=%s&json"
+func NewNBUProvider(url string) *NBUProvider {
+	return &NBUProvider{
+		URL: url,
+	}
+}
 
 // GetRate returns the current base to target currencies rate
 func (nbu *NBUProvider) GetRate(ctx context.Context, base, target string) (float64, error) {
@@ -151,7 +157,7 @@ func (nbu *NBUProvider) GetRate(ctx context.Context, base, target string) (float
 		return -1, fmt.Errorf("invalid rate parameters")
 	}
 
-	response, err := ProcessGETRequest(ctx, fmt.Sprintf(nbuURL, base))
+	response, err := ProcessGETRequest(ctx, fmt.Sprintf(nbu.URL, base))
 	if err != nil {
 		return -1, fmt.Errorf("process get request: %w", err)
 	}

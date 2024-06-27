@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ import (
 )
 
 func TestCoinbaseProvider_GetRate(t *testing.T) {
-	provider := rateapi.NewCoinbaseProvider()
+	provider := rateapi.NewCoinbaseProvider(os.Getenv("COINBASE_URL"))
 
 	price, err := provider.GetRate(context.Background(), "USD", "UAH")
 	require.NoError(t, err)
@@ -23,7 +24,7 @@ func TestCoinbaseProvider_GetRate(t *testing.T) {
 }
 
 func TestCoinbaseProvider_GetRate_InvalidParams(t *testing.T) {
-	provider := rateapi.NewCoinbaseProvider()
+	provider := rateapi.NewCoinbaseProvider(os.Getenv("COINBASE_URL"))
 
 	price, err := provider.GetRate(context.Background(), "USD", "abc")
 	require.Error(t, err)
@@ -62,7 +63,7 @@ func TestCoinbaseProvider_ValidateRateParam(t *testing.T) {
 		{"invalid params - numbers", "123", true},
 		{"invalid params - lowercase", "usd", true},
 	}
-	provider := rateapi.NewCoinbaseProvider()
+	provider := rateapi.NewCoinbaseProvider(os.Getenv("COINBASE_URL"))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := provider.ValidateRateParam(tt.code)

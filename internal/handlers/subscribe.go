@@ -35,7 +35,6 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 	offset, err := timezone.ProcessTimezoneHeader(r)
 	if err != nil {
-		log.Println(fmt.Errorf("processing timezone: %w", err))
 		http.Error(w, "Invalid timezone", http.StatusBadRequest)
 		return
 	}

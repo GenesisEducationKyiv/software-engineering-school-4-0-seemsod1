@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/seemsod1/api-project/internal/rateapi/chain"
 
@@ -32,14 +33,15 @@ func setup(_ *config.AppConfig) error {
 		log.Println("Cannot run schemas migration! Dying...")
 		return fmt.Errorf("running schemas migration: %w", err)
 	}
-	CoinBaseProvider := rateapi.NewLoggingClient("api.coinbase.com",
-		rateapi.NewCoinbaseProvider())
 
-	PrivatBankProvider := rateapi.NewLoggingClient("api.privatbank.ua",
-		rateapi.NewPrivatBankProvider())
+	CoinBaseProvider := rateapi.NewLoggingClient(os.Getenv("COINBASE_SITE"),
+		rateapi.NewCoinbaseProvider(os.Getenv("COINBASE_URL")))
 
-	NBUProvider := rateapi.NewLoggingClient("bank.gov.ua",
-		rateapi.NewNBUProvider())
+	PrivatBankProvider := rateapi.NewLoggingClient(os.Getenv("PRIVATBANK_SITE"),
+		rateapi.NewPrivatBankProvider(os.Getenv("PRIVATBANK_URL")))
+
+	NBUProvider := rateapi.NewLoggingClient(os.Getenv("NBU_SITE"),
+		rateapi.NewNBUProvider(os.Getenv("NBU_URL")))
 
 	BaseChain := chain.NewBaseChain(CoinBaseProvider)
 	SecondChain := chain.NewBaseChain(PrivatBankProvider)
