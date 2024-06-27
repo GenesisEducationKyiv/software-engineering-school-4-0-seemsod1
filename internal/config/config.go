@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -14,7 +16,7 @@ func NewAppConfig() (*AppConfig, error) {
 	var appConfig AppConfig
 	err := envconfig.Process("app", &appConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("processing app config: %w", err)
 	}
 	return &appConfig, nil
 }

@@ -9,8 +9,8 @@ import (
 )
 
 func TestNewAppConfig_Success(t *testing.T) {
-	os.Setenv("APP_PROD", "true")
-	defer os.Unsetenv("APP_PROD")
+	os.Setenv("APP_ENV", "true")
+	defer os.Unsetenv("APP_ENV")
 
 	appConfig, err := config.NewAppConfig()
 	require.NoError(t, err)

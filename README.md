@@ -15,6 +15,7 @@ This project is a test case for Genesis Software School. The service provides AP
 - Docker
 - Docker Compose
 - other packages
+- Taskfile
 
 ## Installation
 
@@ -28,13 +29,57 @@ This project is a test case for Genesis Software School. The service provides AP
 1. Clone the repository:
     ```sh
     git clone https://github.com/seemsod1/api-project.git
+   ```
+    ```
     cd api-project
     ```
-
-2. Build and start the service using Docker:
+2. Build and start the service using Docker-Compose:
     ```sh
-    docker build -t api-project .
-    docker-compose up --build
+    task dcb
+    ```
+3. The service will be available at `http://localhost:8080`.
+4. To stop the service, run:
+    ```sh
+    task dcd
+    ```
+   or 
+    ```sh
+    task docker-compose-down
+    ```
+
+### Executable file (Windows)
+
+- To run the service without Docker, you can build the executable file:
+    ```sh
+    task build
+    ```
+- Build and run the executable:
+    ```sh
+    task run
+    ```
+Do not forget to set/change the environment variables before running the executable.
+
+
+### Linters
+
+- To run the linters, use the following command:
+    ```sh
+    task lint
+    ```
+  or 
+    ```sh
+    task l
+    ```
+  
+### Tests
+
+- To run the tests, use the following command:
+    ```sh
+    task test
+    ```
+  or 
+    ```sh
+    task t
     ```
 
 ## Usage

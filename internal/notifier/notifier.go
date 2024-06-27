@@ -1,6 +1,7 @@
 package notifier
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -19,34 +20,36 @@ const (
 )
 
 type EmailNotifier struct {
-	DB           storage.DatabaseRepo
-	Scheduler    Scheduler
-	RateProvider RateProvider
-	EmailSender  EmailSender
+	DB          storage.DatabaseRepo
+	Scheduler   Scheduler
+	RateService RateService
+	EmailSender EmailSender
 }
 
-type EmailSender interface {
-	Send(e *email.Email) error
-}
+type (
+	EmailSender interface {
+		Send(e *email.Email) error
+	}
 
-type RateProvider interface {
-	GetRate(from, to string) (float64, error)
-}
+	RateService interface {
+		GetRate(ctx context.Context, base, target string) (float64, error)
+	}
 
-type Scheduler interface {
-	Start()
-	AddEverydayJob(task func(), minute int) error
-}
+	Scheduler interface {
+		Start()
+		AddEverydayJob(task func(), minute int) error
+	}
+)
 
-func NewEmailNotifier(db storage.DatabaseRepo, sch Scheduler, rateProvider RateProvider, emailSender EmailSender) *EmailNotifier {
-	return &EmailNotifier{DB: db, Scheduler: sch, RateProvider: rateProvider, EmailSender: emailSender}
+func NewEmailNotifier(db storage.DatabaseRepo, sch Scheduler, rateService RateService, emailSender EmailSender) *EmailNotifier {
+	return &EmailNotifier{DB: db, Scheduler: sch, RateService: rateService, EmailSender: emailSender}
 }
 
 func (et *EmailNotifier) Start() error {
 	log.Println("Starting mail sender")
 	cfg, err := NewEmailNotifierConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("creating mail sender config: %w", err)
 	}
 
 	if !cfg.Validate() {
@@ -75,14 +78,17 @@ func (et *EmailNotifier) Start() error {
 		log.Println("Emails sent")
 	}, MinuteToSend)
 	if err != nil {
-		return fmt.Errorf("failed to add everyday job: %w", err)
+		return fmt.Errorf("adding everyday job: %w", err)
 	}
 
 	return nil
 }
 
 func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string) {
-	rate, err := et.RateProvider.GetRate("USD", "UAH")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rate, err := et.RateService.GetRate(ctx, "USD", "UAH")
 	if err != nil {
 		log.Printf("Error getting rate: %v\n", err)
 		return

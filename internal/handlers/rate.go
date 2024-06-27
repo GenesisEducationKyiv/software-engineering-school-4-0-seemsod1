@@ -1,19 +1,23 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/render"
 )
 
-type Provider interface {
-	GetRate(from, to string) (float64, error)
+type RateService interface {
+	GetRate(ctx context.Context, base, target string) (float64, error)
 }
 
 // Rate returns the current USD to UAH rate
 func (m *Repository) Rate(w http.ResponseWriter, r *http.Request) {
-	price, err := m.Provider.GetRate("USD", "UAH")
+	price, err := m.RateService.GetRate(r.Context(), "USD", "UAH")
 	if err != nil {
+		log.Println(fmt.Errorf("getting rate: %w", err))
 		http.Error(w, "Failed to get rate", http.StatusBadRequest)
 		return
 	}

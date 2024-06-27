@@ -2,6 +2,7 @@ package dbrepo
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	customerrors "github.com/seemsod1/api-project/internal/errors"
@@ -18,7 +19,7 @@ func (m *gormDBRepo) AddSubscriber(subscriber models.Subscriber) error {
 		if errors.As(err, &duplicateEntryError) {
 			return customerrors.ErrDuplicatedKey
 		}
-		return err
+		return fmt.Errorf("gorm adding subscriber: %w", err)
 	}
 	return nil
 }
@@ -28,7 +29,7 @@ func (m *gormDBRepo) GetSubscribers(timezone int) ([]string, error) {
 	var emails []string
 	err := m.DB.Model(&models.Subscriber{}).Where("timezone = ?", timezone).Pluck("email", &emails).Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("gorm getting subscribers: %w", err)
 	}
 
 	return emails, nil

@@ -1,7 +1,7 @@
 package driver
 
 import (
-	"errors"
+	"fmt"
 	"log"
 
 	"github.com/kelseyhightower/envconfig"
@@ -19,7 +19,7 @@ type DatabaseConfig struct {
 func NewDatabaseConfig() (*DatabaseConfig, error) {
 	var dbConfig DatabaseConfig
 	if err := envconfig.Process("DB", &dbConfig); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("processing database config: %w", err)
 	}
 
 	return &dbConfig, nil
@@ -42,11 +42,11 @@ func NewGORMDriver() *GORMDriver {
 func (gd *GORMDriver) ConnectSQL() (*GORMDriver, error) {
 	cfg, err := NewDatabaseConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating database configuration: %w", err)
 	}
 
 	if !cfg.Validate() {
-		return nil, errors.New("invalid database configuration")
+		return nil, fmt.Errorf("validating database configuration: %t", cfg.Validate())
 	}
 
 	d := gd.openDB(cfg)
@@ -71,7 +71,7 @@ func (gd *GORMDriver) openDB(cfg *DatabaseConfig) *gorm.DB {
 func (gd *GORMDriver) RunMigrations() error {
 	err := gd.DB.AutoMigrate(&models.Subscriber{})
 	if err != nil {
-		return err
+		return fmt.Errorf("auto migrating: %w", err)
 	}
 	return nil
 }
