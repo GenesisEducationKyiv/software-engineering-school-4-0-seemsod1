@@ -7,13 +7,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/seemsod1/api-project/internal/logger"
+
 	"github.com/seemsod1/api-project/internal/handlers"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRate_ProviderError(t *testing.T) {
 	mockProvider := newMockProvider()
-	repo := handlers.Repository{RateService: mockProvider}
+	logg, _ := logger.NewLogger("test")
+	repo := handlers.Repository{RateService: mockProvider, Logger: logg}
 
 	handler := http.HandlerFunc(repo.Rate)
 

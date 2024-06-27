@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/seemsod1/api-project/internal/logger"
+
 	"github.com/seemsod1/api-project/internal/rateapi"
 
 	"github.com/seemsod1/api-project/internal/notifier"
@@ -16,7 +18,7 @@ import (
 )
 
 func TestNewEmailNotifier(t *testing.T) {
-	notification := notifier.NewEmailNotifier(nil, nil, nil, nil)
+	notification := notifier.NewEmailNotifier(nil, nil, nil, nil, nil)
 	require.NotNil(t, notification)
 }
 
@@ -48,7 +50,8 @@ func TestEmailNotifier_Start_Success(t *testing.T) {
 	}()
 	cfg, _ := notifier.NewEmailNotifierConfig()
 	mailSender, _ := notifier.NewSMTPEmailSender(cfg)
-	et := notifier.NewEmailNotifier(mockDB, mockScheduler, provider, mailSender)
+	logg, _ := logger.NewLogger("test")
+	et := notifier.NewEmailNotifier(mockDB, mockScheduler, provider, mailSender, logg)
 
 	mockDB.On("GetSubscribers", timezoneDiff).Return([]string{}, nil)
 
@@ -68,6 +71,7 @@ func TestEmailNotifier_Start_Success(t *testing.T) {
 func TestEmailNotifier_Start_InvalidConfig(t *testing.T) {
 	mockDB := dbrepo.NewMockDB()
 	mockScheduler := &scheduler.MockScheduler{}
+	logg, _ := logger.NewLogger("test")
 
 	os.Setenv("MAILER_HOST", "")
 	os.Setenv("MAILER_PORT", "587")
@@ -79,7 +83,7 @@ func TestEmailNotifier_Start_InvalidConfig(t *testing.T) {
 		os.Unsetenv("MAILER_FROM")
 	}()
 
-	et := notifier.NewEmailNotifier(mockDB, mockScheduler, nil, nil)
+	et := notifier.NewEmailNotifier(mockDB, mockScheduler, nil, nil, logg)
 	err := et.Start()
 	require.Error(t, err)
 }
@@ -87,6 +91,7 @@ func TestEmailNotifier_Start_InvalidConfig(t *testing.T) {
 func TestEmailNotifier_Start_InvalidConfig_Validation(t *testing.T) {
 	mockDB := dbrepo.NewMockDB()
 	mockScheduler := &scheduler.MockScheduler{}
+	logg, _ := logger.NewLogger("test")
 
 	os.Setenv("MAILER_HOST", "smtp.gmail.com")
 	os.Setenv("MAILER_PORT", "587")
@@ -99,8 +104,7 @@ func TestEmailNotifier_Start_InvalidConfig_Validation(t *testing.T) {
 		os.Unsetenv("MAILER_FROM")
 		os.Unsetenv("MAILER_PASSWORD")
 	}()
-
-	et := notifier.NewEmailNotifier(mockDB, mockScheduler, nil, nil)
+	et := notifier.NewEmailNotifier(mockDB, mockScheduler, nil, nil, logg)
 	err := et.Start()
 	require.Error(t, err)
 }

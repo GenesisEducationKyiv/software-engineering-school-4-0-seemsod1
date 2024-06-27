@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"net/http"
+
+	"go.uber.org/zap"
 
 	"github.com/go-chi/render"
 )
@@ -17,7 +17,7 @@ type RateService interface {
 func (m *Repository) Rate(w http.ResponseWriter, r *http.Request) {
 	price, err := m.RateService.GetRate(r.Context(), "USD", "UAH")
 	if err != nil {
-		log.Println(fmt.Errorf("getting rate: %w", err))
+		m.Logger.Error("Getting rate", zap.Error(err))
 		http.Error(w, "Failed to get rate", http.StatusBadRequest)
 		return
 	}

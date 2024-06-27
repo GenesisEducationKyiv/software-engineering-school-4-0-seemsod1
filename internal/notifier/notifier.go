@@ -3,12 +3,13 @@ package notifier
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
+	"github.com/seemsod1/api-project/internal/logger"
+	"go.uber.org/zap"
+
 	"github.com/jordan-wright/email"
-	"github.com/seemsod1/api-project/internal/storage"
 	"github.com/seemsod1/api-project/internal/timezone"
 )
 
@@ -20,10 +21,11 @@ const (
 )
 
 type EmailNotifier struct {
-	DB          storage.DatabaseRepo
+	Subscriber  Subscriber
 	Scheduler   Scheduler
 	RateService RateService
 	EmailSender EmailSender
+	Logger      *logger.Logger
 }
 
 type (
@@ -39,14 +41,24 @@ type (
 		Start()
 		AddEverydayJob(task func(), minute int) error
 	}
+	Subscriber interface {
+		GetSubscribers(timezoneDiff int) ([]string, error)
+	}
 )
 
-func NewEmailNotifier(db storage.DatabaseRepo, sch Scheduler, rateService RateService, emailSender EmailSender) *EmailNotifier {
-	return &EmailNotifier{DB: db, Scheduler: sch, RateService: rateService, EmailSender: emailSender}
+func NewEmailNotifier(subs Subscriber, sch Scheduler, rateService RateService,
+	emailSender EmailSender, logg *logger.Logger) *EmailNotifier {
+	return &EmailNotifier{
+		Subscriber:  subs,
+		Scheduler:   sch,
+		RateService: rateService,
+		EmailSender: emailSender,
+		Logger:      logg,
+	}
 }
 
 func (et *EmailNotifier) Start() error {
-	log.Println("Starting mail sender")
+	et.Logger.Info("Starting mail sender")
 	cfg, err := NewEmailNotifierConfig()
 	if err != nil {
 		return fmt.Errorf("creating mail sender config: %w", err)
@@ -59,23 +71,23 @@ func (et *EmailNotifier) Start() error {
 	sch := et.Scheduler
 	sch.Start()
 	err = sch.AddEverydayJob(func() {
-		log.Println("Sending emails")
+		et.Logger.Info("Sending emails")
 
 		localTime := time.Now().Hour()
 		timezoneDiff := timezone.GetTimezoneDiff(localTime, TimeToSend)
 		if err = timezone.ValidateTimezoneDiff(timezoneDiff); err != nil {
-			log.Printf("Error validating timezone diff: %v\n", err)
+			et.Logger.Errorf("Error validating timezone diff: %v\n", err)
 			return
 		}
 
-		subs, er := et.DB.GetSubscribers(timezoneDiff)
+		subs, er := et.Subscriber.GetSubscribers(timezoneDiff)
 		if er != nil {
-			log.Printf("Error getting subscribers: %v\n", er)
+			et.Logger.Errorf("Error getting subscribers: %v\n", er)
 			return
 		}
 
 		et.sendEmails(cfg, subs)
-		log.Println("Emails sent")
+		et.Logger.Info("Emails sent")
 	}, MinuteToSend)
 	if err != nil {
 		return fmt.Errorf("adding everyday job: %w", err)
@@ -90,7 +102,7 @@ func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string
 
 	rate, err := et.RateService.GetRate(ctx, "USD", "UAH")
 	if err != nil {
-		log.Printf("Error getting rate: %v\n", err)
+		et.Logger.Errorf("Error getting rate: %v\n", err)
 		return
 	}
 	msgText := []byte("Current rate: " + fmt.Sprintf("%.2f", rate))
@@ -102,7 +114,7 @@ func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string
 		go func() {
 			for e := range ch {
 				if err := et.EmailSender.Send(e); err != nil {
-					log.Printf("Error sending email: %v\n", err)
+					et.Logger.Error("Error sending email", zap.String("recipient", e.To[0]), zap.Error(err))
 				}
 				wg.Done()
 			}

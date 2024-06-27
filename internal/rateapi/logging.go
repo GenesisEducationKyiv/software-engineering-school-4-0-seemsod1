@@ -2,7 +2,8 @@ package rateapi
 
 import (
 	"context"
-	"log"
+
+	"github.com/seemsod1/api-project/internal/logger"
 )
 
 type RateService interface {
@@ -13,22 +14,24 @@ type RateService interface {
 type LoggingClient struct {
 	name        string
 	rateService RateService
+	logger      *logger.Logger
 }
 
-func NewLoggingClient(name string, rateService RateService) *LoggingClient {
+func NewLoggingClient(name string, rateService RateService, log *logger.Logger) *LoggingClient {
 	return &LoggingClient{
 		name:        name,
 		rateService: rateService,
+		logger:      log,
 	}
 }
 
 func (l *LoggingClient) GetRate(ctx context.Context, base, target string) (float64, error) {
 	rate, err := l.rateService.GetRate(ctx, base, target)
 	if err != nil {
-		log.Printf("%s: Response: {error: %v}", l.name, err)
+		l.logger.Warnf("%s: Response: {error: %v}", l.name, err)
 		return -1, err
 	}
 
-	log.Printf("%s: Response: {price: %f}", l.name, rate)
+	l.logger.Infof("%s: Response: {price: %f}", l.name, rate)
 	return rate, nil
 }

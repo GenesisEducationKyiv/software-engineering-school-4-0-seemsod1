@@ -8,7 +8,7 @@ import (
 
 // AppConfig is a struct that holds the configuration of the app
 type AppConfig struct {
-	Prod bool `required:"true"`
+	Mode string `default:"dev"`
 }
 
 // NewAppConfig creates a new AppConfig
