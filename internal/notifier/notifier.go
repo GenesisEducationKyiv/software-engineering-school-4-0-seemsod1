@@ -47,7 +47,8 @@ type (
 )
 
 func NewEmailNotifier(subs Subscriber, sch Scheduler, rateService RateService,
-	emailSender EmailSender, logg *logger.Logger) *EmailNotifier {
+	emailSender EmailSender, logg *logger.Logger,
+) *EmailNotifier {
 	return &EmailNotifier{
 		Subscriber:  subs,
 		Scheduler:   sch,
