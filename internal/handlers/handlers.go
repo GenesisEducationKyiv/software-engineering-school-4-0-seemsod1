@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/seemsod1/api-project/internal/storage"
+	"github.com/seemsod1/api-project/internal/logger"
 )
 
 // Repo is the repository used by the handlers
@@ -9,15 +9,17 @@ var Repo *Repository
 
 // Repository is the repository struct
 type Repository struct {
-	DB          storage.DatabaseRepo
+	Subscriber  Subscriber
 	RateService RateService
+	Logger      *logger.Logger
 }
 
 // NewRepo creates a new repository with GORM
-func NewRepo(db storage.DatabaseRepo, rateService RateService) *Repository {
+func NewRepo(subs Subscriber, rateService RateService, log *logger.Logger) *Repository {
 	return &Repository{
-		DB:          db,
+		Subscriber:  subs,
 		RateService: rateService,
+		Logger:      log,
 	}
 }
 

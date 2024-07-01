@@ -16,6 +16,8 @@ import (
 )
 
 func TestCoinbaseProvider_GetRate(t *testing.T) {
+	os.Setenv("COINBASE_URL", "https://api.coinbase.com/v2/prices/%s-%s/buy")
+	defer os.Unsetenv("COINBASE_URL")
 	provider := rateapi.NewCoinbaseProvider(os.Getenv("COINBASE_URL"))
 
 	price, err := provider.GetRate(context.Background(), "USD", "UAH")

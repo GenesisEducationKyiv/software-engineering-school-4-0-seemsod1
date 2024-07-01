@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/seemsod1/api-project/internal/logger"
+
 	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/handlers"
 	"github.com/seemsod1/api-project/internal/models"
@@ -18,7 +20,8 @@ import (
 
 func TestSubscribeIntegration(t *testing.T) {
 	mockDB := dbrepo.NewMockDB()
-	repo := handlers.Repository{DB: mockDB}
+	logg, _ := logger.NewLogger("test")
+	repo := handlers.Repository{Subscriber: mockDB, Logger: logg}
 	handler := http.HandlerFunc(repo.Subscribe)
 
 	testCases := []struct {
@@ -144,7 +147,8 @@ func TestSubscribeIntegration(t *testing.T) {
 
 func TestSubscribe_ErrorParsingForm(t *testing.T) {
 	mockDB := dbrepo.NewMockDB()
-	repo := handlers.Repository{DB: mockDB}
+	logg, _ := logger.NewLogger("test")
+	repo := handlers.Repository{Subscriber: mockDB, Logger: logg}
 	handler := http.HandlerFunc(repo.Subscribe)
 
 	req := httptest.NewRequest(http.MethodPost, "/subscribe", http.NoBody)

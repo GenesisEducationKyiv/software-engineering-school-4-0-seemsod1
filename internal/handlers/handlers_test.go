@@ -28,17 +28,17 @@ func TestNewRepo(t *testing.T) {
 	mockDB := dbrepo.NewMockDB()
 	provider := newMockProvider()
 
-	repo := handlers.NewRepo(mockDB, provider)
+	repo := handlers.NewRepo(mockDB, provider, nil)
 
 	assert.NotNil(t, repo)
-	assert.Equal(t, mockDB, repo.DB)
+	assert.Equal(t, mockDB, repo.Subscriber)
 }
 
 func TestNewHandlers(t *testing.T) {
 	mockDB := dbrepo.NewMockDB()
 	provider := newMockProvider()
 
-	repo := handlers.NewRepo(mockDB, provider)
+	repo := handlers.NewRepo(mockDB, provider, nil)
 
 	handlers.NewHandlers(repo)
 
