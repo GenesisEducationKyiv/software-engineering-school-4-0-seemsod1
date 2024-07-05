@@ -1,4 +1,4 @@
-package notifier
+package messagesender
 
 import (
 	"fmt"
@@ -6,21 +6,21 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-type EmailNotifierConfig struct {
+type EmailSenderConfig struct {
 	Host     string `required:"true"`
 	Port     string `required:"true"`
 	From     string `required:"true"`
 	Password string `required:"true"`
 }
 
-func NewEmailNotifierConfig() (EmailNotifierConfig, error) {
-	var cfg EmailNotifierConfig
+func NewEmailSenderConfig() (EmailSenderConfig, error) {
+	var cfg EmailSenderConfig
 	if err := envconfig.Process("mailer", &cfg); err != nil {
 		return cfg, fmt.Errorf("processing mailer config: %w", err)
 	}
 	return cfg, nil
 }
 
-func (c *EmailNotifierConfig) Validate() bool {
+func (c *EmailSenderConfig) Validate() bool {
 	return !(c.Host == "" || c.Port == "" || c.From == "" || c.Password == "")
 }

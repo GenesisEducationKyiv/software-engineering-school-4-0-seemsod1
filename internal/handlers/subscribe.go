@@ -15,7 +15,8 @@ import (
 
 type Subscriber interface {
 	AddSubscriber(subscriber models.Subscriber) error
-	GetSubscribers(timezone int) ([]string, error)
+	GetSubscribersWithTimezone(timezone int) ([]string, error)
+	GetSubscribers() ([]string, error)
 }
 
 // Subscribe subscribes a user to the newsletter

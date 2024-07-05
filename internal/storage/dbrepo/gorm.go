@@ -24,10 +24,21 @@ func (m *gormDBRepo) AddSubscriber(subscriber models.Subscriber) error {
 	return nil
 }
 
-// GetSubscribers returns all subscribers from the database
-func (m *gormDBRepo) GetSubscribers(timezone int) ([]string, error) {
+// GetSubscribersWithTimezone returns all subscribers from the database
+func (m *gormDBRepo) GetSubscribersWithTimezone(timezone int) ([]string, error) {
 	var emails []string
 	err := m.DB.Model(&models.Subscriber{}).Where("timezone = ?", timezone).Pluck("email", &emails).Error
+	if err != nil {
+		return nil, fmt.Errorf("gorm getting subscribers: %w", err)
+	}
+
+	return emails, nil
+}
+
+// GetSubscribers returns all subscribers from the database
+func (m *gormDBRepo) GetSubscribers() ([]string, error) {
+	var emails []string
+	err := m.DB.Model(&models.Subscriber{}).Pluck("email", &emails).Error
 	if err != nil {
 		return nil, fmt.Errorf("gorm getting subscribers: %w", err)
 	}

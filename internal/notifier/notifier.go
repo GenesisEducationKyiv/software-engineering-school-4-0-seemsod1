@@ -3,29 +3,28 @@ package notifier
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
-	"github.com/seemsod1/api-project/internal/logger"
-	"go.uber.org/zap"
+	emailStreamer "github.com/seemsod1/api-project/internal/email_streamer"
+	"github.com/segmentio/kafka-go"
 
 	"github.com/jordan-wright/email"
+	"github.com/seemsod1/api-project/internal/logger"
 	"github.com/seemsod1/api-project/internal/timezone"
 )
 
 const (
-	numWorkers   = 4
-	bufferSize   = 100
 	TimeToSend   = 9 // 9 AM to send emails
 	MinuteToSend = 1 // send at *:01 AM
 )
 
 type EmailNotifier struct {
-	Subscriber  Subscriber
-	Scheduler   Scheduler
-	RateService RateService
-	EmailSender EmailSender
-	Logger      *logger.Logger
+	Subscriber    Subscriber
+	Event         Event
+	Scheduler     Scheduler
+	RateService   RateService
+	Logger        *logger.Logger
+	KafkaProducer *kafka.Writer
 }
 
 type (
@@ -42,52 +41,48 @@ type (
 		AddEverydayJob(task func(), minute int) error
 	}
 	Subscriber interface {
-		GetSubscribers(timezoneDiff int) ([]string, error)
+		GetSubscribersWithTimezone(timezoneDiff int) ([]string, error)
+	}
+	Event interface {
+		AddToEvents([]emailStreamer.Event) error
 	}
 )
 
-func NewEmailNotifier(subs Subscriber, sch Scheduler, rateService RateService,
-	emailSender EmailSender, logg *logger.Logger,
+func NewEmailNotifier(subs Subscriber, event Event, sch Scheduler, rateService RateService,
+	logg *logger.Logger, kafkaProducer *kafka.Writer,
 ) *EmailNotifier {
 	return &EmailNotifier{
-		Subscriber:  subs,
-		Scheduler:   sch,
-		RateService: rateService,
-		EmailSender: emailSender,
-		Logger:      logg,
+		Subscriber:    subs,
+		Event:         event,
+		Scheduler:     sch,
+		RateService:   rateService,
+		Logger:        logg,
+		KafkaProducer: kafkaProducer,
 	}
 }
 
 func (et *EmailNotifier) Start() error {
 	et.Logger.Info("Starting mail sender")
-	cfg, err := NewEmailNotifierConfig()
-	if err != nil {
-		return fmt.Errorf("creating mail sender config: %w", err)
-	}
-
-	if !cfg.Validate() {
-		return fmt.Errorf("invalid mail config")
-	}
 
 	sch := et.Scheduler
 	sch.Start()
-	err = sch.AddEverydayJob(func() {
+	err := sch.AddEverydayJob(func() {
 		et.Logger.Info("Sending emails")
 
 		localTime := time.Now().Hour()
 		timezoneDiff := timezone.GetTimezoneDiff(localTime, TimeToSend)
-		if err = timezone.ValidateTimezoneDiff(timezoneDiff); err != nil {
+		if err := timezone.ValidateTimezoneDiff(timezoneDiff); err != nil {
 			et.Logger.Errorf("Error validating timezone diff: %v\n", err)
 			return
 		}
 
-		subs, er := et.Subscriber.GetSubscribers(timezoneDiff)
+		subs, er := et.Subscriber.GetSubscribersWithTimezone(timezoneDiff)
 		if er != nil {
 			et.Logger.Errorf("Error getting subscribers: %v\n", er)
 			return
 		}
 
-		et.sendEmails(cfg, subs)
+		et.SendRate(subs)
 		et.Logger.Info("Emails sent")
 	}, MinuteToSend)
 	if err != nil {
@@ -97,7 +92,7 @@ func (et *EmailNotifier) Start() error {
 	return nil
 }
 
-func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string) {
+func (et *EmailNotifier) SendRate(recipients []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -106,32 +101,30 @@ func (et *EmailNotifier) sendEmails(cfg EmailNotifierConfig, recipients []string
 		et.Logger.Errorf("Error getting rate: %v\n", err)
 		return
 	}
-	msgText := []byte("Current rate: " + fmt.Sprintf("%.2f", rate))
+	msgText := fmt.Sprintf("Current rate: %.2f", rate)
 
-	ch := make(chan *email.Email, bufferSize)
-	var wg sync.WaitGroup
-
-	for i := 0; i < numWorkers; i++ {
-		go func() {
-			for e := range ch {
-				if err := et.EmailSender.Send(e); err != nil {
-					et.Logger.Error("Error sending email", zap.String("recipient", e.To[0]), zap.Error(err))
-				}
-				wg.Done()
-			}
-		}()
-	}
-
+	messages := make([]emailStreamer.Event, 0, len(recipients))
 	for _, recipient := range recipients {
-		e := email.NewEmail()
-		e.From = cfg.From
-		e.To = []string{recipient}
-		e.Subject = "Currency rate notification: USD to UAH"
-		e.Text = msgText
-		wg.Add(1)
-		ch <- e
+		data := emailStreamer.Data{
+			Recipient: recipient,
+			Message:   msgText,
+		}
+		serializedData, er := emailStreamer.SerializeData(data)
+		if er != nil {
+			et.Logger.Errorf("Error serializing data: %v\n", err)
+			return
+		}
+
+		msg := emailStreamer.Event{
+			Data: serializedData,
+		}
+		messages = append(messages, msg)
 	}
 
-	wg.Wait()
-	close(ch)
+	if err = et.Event.AddToEvents(messages); err != nil {
+		et.Logger.Errorf("Error adding to outbox: %v\n", err)
+		return
+	}
+
+	et.Logger.Info("All messages saved to outbox")
 }
