@@ -5,8 +5,12 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/models"
+)
+
+var (
+	ErrorDuplicateSubscription   = errors.New("subscription already exists")
+	ErrorNonExistentSubscription = errors.New("subscription does not exist")
 )
 
 // AddSubscriber adds a new subscriber to the database
@@ -17,10 +21,24 @@ func (m *gormDBRepo) AddSubscriber(subscriber models.Subscriber) error {
 
 	if err != nil {
 		if errors.As(err, &duplicateEntryError) {
-			return customerrors.ErrDuplicatedKey
+			return ErrorDuplicateSubscription
 		}
 		return fmt.Errorf("gorm adding subscriber: %w", err)
 	}
+	return nil
+}
+
+// RemoveSubscriber removes a subscriber from the database
+func (m *gormDBRepo) RemoveSubscriber(email string) error {
+	res := m.DB.Where("email = ?", email).Delete(&models.Subscriber{})
+	if res.Error != nil {
+		return fmt.Errorf("gorm deleting subscriber: %w", res.Error)
+	}
+
+	if res.RowsAffected == 0 {
+		return ErrorNonExistentSubscription
+	}
+
 	return nil
 }
 

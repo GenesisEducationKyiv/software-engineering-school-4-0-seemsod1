@@ -9,7 +9,6 @@ import (
 
 	"github.com/seemsod1/api-project/internal/logger"
 
-	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/handlers"
 	"github.com/seemsod1/api-project/internal/models"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
@@ -90,7 +89,7 @@ func TestSubscribeIntegration(t *testing.T) {
 			headers: map[string]string{
 				"Accept-Timezone": "UTC",
 			},
-			mockReturn: customerrors.ErrDuplicatedKey,
+			mockReturn: dbrepo.ErrorDuplicateSubscription,
 			wantStatus: http.StatusConflict,
 		},
 		{

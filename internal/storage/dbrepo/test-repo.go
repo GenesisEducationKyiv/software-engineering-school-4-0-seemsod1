@@ -16,3 +16,8 @@ func (m *MockDB) GetSubscribers() ([]string, error) {
 	args := m.Called()
 	return args.Get(0).([]string), args.Error(1)
 }
+
+func (m *MockDB) RemoveSubscriber(email string) error {
+	args := m.Called(email)
+	return args.Error(0)
+}

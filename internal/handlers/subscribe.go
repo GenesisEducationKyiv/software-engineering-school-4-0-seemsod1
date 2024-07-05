@@ -4,10 +4,11 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/seemsod1/api-project/internal/storage/dbrepo"
+
 	"go.uber.org/zap"
 
 	"github.com/go-chi/render"
-	customerrors "github.com/seemsod1/api-project/internal/errors"
 	"github.com/seemsod1/api-project/internal/forms"
 	"github.com/seemsod1/api-project/internal/models"
 	"github.com/seemsod1/api-project/internal/timezone"
@@ -15,30 +16,19 @@ import (
 
 type Subscriber interface {
 	AddSubscriber(subscriber models.Subscriber) error
+	RemoveSubscriber(email string) error
 	GetSubscribersWithTimezone(timezone int) ([]string, error)
 	GetSubscribers() ([]string, error)
 }
 
 // Subscribe subscribes a user to the newsletter
 func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		m.Logger.Errorf("parsing form: %w", err)
-		http.Error(w, "Unable to parse form", http.StatusBadRequest)
-		return
-	}
-
-	email := r.Form.Get("email")
-
-	form := forms.New(r.PostForm)
-	form.Required("email")
-	form.IsEmail("email")
-
-	if !form.Valid() {
-		m.Logger.Error("Invalid email", zap.String("email", email))
+	email, err := forms.ParseEmail(r)
+	if err != nil {
+		m.Logger.Error("Invalid email", zap.Error(err))
 		http.Error(w, "Invalid email", http.StatusBadRequest)
 		return
 	}
-
 	offset, err := timezone.ProcessTimezoneHeader(r)
 	if err != nil {
 		m.Logger.Error("Invalid timezone", zap.Error(err))
@@ -50,7 +40,7 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 		Email:    email,
 		Timezone: offset,
 	}); err != nil {
-		if errors.Is(err, customerrors.ErrDuplicatedKey) {
+		if errors.Is(err, dbrepo.ErrorDuplicateSubscription) {
 			m.Logger.Errorf("%s: %s", email, "Already exists")
 			http.Error(w, "Already exists", http.StatusConflict)
 			return
@@ -62,4 +52,28 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	render.JSON(w, r, map[string]string{"message": "Successfully subscribed"})
+}
+
+// Unsubscribe unsubscribes a user from the newsletter
+func (m *Repository) Unsubscribe(w http.ResponseWriter, r *http.Request) {
+	email, err := forms.ParseEmail(r)
+	if err != nil {
+		m.Logger.Error("Invalid email", zap.Error(err))
+		http.Error(w, "Invalid email", http.StatusBadRequest)
+		return
+	}
+
+	if err = m.Subscriber.RemoveSubscriber(email); err != nil {
+		if errors.Is(err, dbrepo.ErrorNonExistentSubscription) {
+			m.Logger.Errorf("%s: %s", email, "Not found")
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+		m.Logger.Errorf("removing subscriber: %w", err)
+		http.Error(w, "Failed to unsubscribe", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	render.JSON(w, r, map[string]string{"message": "Successfully unsubscribed"})
 }

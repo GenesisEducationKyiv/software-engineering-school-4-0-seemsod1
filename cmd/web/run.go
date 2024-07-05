@@ -68,8 +68,10 @@ func run() error {
 		return fmt.Errorf("creating streamer repository: %w", err)
 	}
 
-	kafReader := emailStreamer.NewKafkaReader("kafka-broker:9092", "emails", "email_sender_group")
-	if err = emailStreamer.NewKafkaTopic("kafka-broker:9092", "emails"); err != nil {
+	kafkaURL := os.Getenv("KAFKA_URL")
+
+	kafReader := emailStreamer.NewKafkaConsumer(kafkaURL, "emails", "email_sender_group")
+	if err = emailStreamer.NewKafkaTopic(kafkaURL, "emails"); err != nil {
 		return fmt.Errorf("creating kafka topic: %w", err)
 	}
 
@@ -90,7 +92,7 @@ func run() error {
 
 	go emailSender.StartReceivingMessages(ctx)
 
-	kafWriter := emailStreamer.NewKafkaWriter("kafka-broker:9092", "emails")
+	kafWriter := emailStreamer.NewKafkaWriter(kafkaURL, "emails")
 
 	es := emailStreamer.NewEmailStreamer(streamRepository, kafWriter, logg)
 	go es.Process(ctx)

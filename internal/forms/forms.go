@@ -1,6 +1,8 @@
 package forms
 
 import (
+	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -43,4 +45,22 @@ func (f *Form) IsEmail(field string) {
 	if err := validate.Var(f.Get(field), "email"); err != nil {
 		f.Errors.Add(field, "Invalid email address")
 	}
+}
+
+func ParseEmail(r *http.Request) (string, error) {
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		return "", fmt.Errorf("unable to parse form")
+	}
+
+	email := r.Form.Get("email")
+
+	form := New(r.PostForm)
+	form.Required("email")
+	form.IsEmail("email")
+
+	if !form.Valid() {
+		return "", fmt.Errorf("invalid email")
+	}
+
+	return email, nil
 }
