@@ -6,7 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/seemsod1/api-project/internal/timezone"
+	"github.com/seemsod1/api-project/pkg/timezone"
+
 	"github.com/stretchr/testify/require"
 )
 

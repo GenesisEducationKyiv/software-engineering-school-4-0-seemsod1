@@ -1,10 +1,10 @@
-package streamerrepo
+package notifierrepo
 
 import (
 	"errors"
 	"fmt"
 
-	emailStreamer "github.com/seemsod1/api-project/internal/email_streamer"
+	emailStreamer "github.com/seemsod1/api-project/pkg/email_streamer"
 	"gorm.io/gorm"
 )
 

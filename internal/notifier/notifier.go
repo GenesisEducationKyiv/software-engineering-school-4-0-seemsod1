@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/seemsod1/api-project/pkg/notifier"
+
+	"github.com/seemsod1/api-project/pkg/timezone"
+
 	"github.com/jordan-wright/email"
-	"github.com/seemsod1/api-project/internal/logger"
-	"github.com/seemsod1/api-project/internal/timezone"
+	"github.com/seemsod1/api-project/pkg/logger"
 )
 
 const (
@@ -41,7 +44,7 @@ type (
 		GetSubscribersWithTimezone(timezoneDiff int) ([]string, error)
 	}
 	EventRepo interface {
-		AddToEvents([]Event) error
+		AddToEvents([]notifier.Event) error
 	}
 )
 
@@ -99,7 +102,7 @@ func (et *EmailNotifier) SendRate(recipients []string) {
 	}
 	msgText := fmt.Sprintf("Current rate: %.2f", rate)
 
-	messages := make([]Event, 0, len(recipients))
+	messages := make([]notifier.Event, 0, len(recipients))
 	for _, recipient := range recipients {
 		data := Data{
 			Recipient: recipient,
@@ -111,7 +114,7 @@ func (et *EmailNotifier) SendRate(recipients []string) {
 			return
 		}
 
-		msg := Event{
+		msg := notifier.Event{
 			Data: serializedData,
 		}
 		messages = append(messages, msg)

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/smtp"
 
-	"github.com/seemsod1/api-project/internal/logger"
+	"github.com/seemsod1/api-project/pkg/logger"
 
 	"github.com/segmentio/kafka-go"
 

@@ -11,16 +11,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/seemsod1/api-project/internal/broker"
-	emailStreamer "github.com/seemsod1/api-project/internal/email_streamer"
-	streamerrepo "github.com/seemsod1/api-project/internal/email_streamer/repository"
+	"github.com/seemsod1/api-project/pkg/kafkautil"
+
 	messagesender "github.com/seemsod1/api-project/internal/message_sender"
 	messagesenderrepo "github.com/seemsod1/api-project/internal/message_sender/repository"
 	notifierrepo "github.com/seemsod1/api-project/internal/notifier/repository"
+	emailStreamer "github.com/seemsod1/api-project/pkg/email_streamer"
 
 	"github.com/joho/godotenv"
 	"github.com/seemsod1/api-project/internal/config"
-	"github.com/seemsod1/api-project/internal/logger"
+	"github.com/seemsod1/api-project/pkg/logger"
 )
 
 const portNumber = ":8080"
@@ -54,9 +54,9 @@ func run() error {
 	}
 	kafkaURL := os.Getenv("KAFKA_URL")
 
-	kafReader := broker.NewKafkaConsumer(kafkaURL, "emails", "email_sender_group")
+	kafReader := kafkautil.NewKafkaConsumer(kafkaURL, "emails", "email_sender_group")
 
-	if err = broker.NewKafkaTopic(kafkaURL, "emails", 1); err != nil {
+	if err = kafkautil.NewKafkaTopic(kafkaURL, "emails", 1); err != nil {
 		return fmt.Errorf("creating kafka topic: %w", err)
 	}
 
@@ -82,9 +82,9 @@ func run() error {
 
 	go eventConsumer(ctx, emailSender)
 
-	kafWriter := broker.NewKafkaProducer(kafkaURL, "emails")
+	kafWriter := kafkautil.NewKafkaProducer(kafkaURL, "emails")
 
-	streamRepository, err := streamerrepo.NewStreamerRepo(db.DB)
+	streamRepository, err := notifierrepo.NewStreamerRepo(db.DB)
 	if err != nil {
 		return fmt.Errorf("creating streamer repository: %w", err)
 	}

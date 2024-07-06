@@ -12,7 +12,7 @@ import (
 	"github.com/seemsod1/api-project/internal/scheduler"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
 
-	logger "github.com/seemsod1/api-project/internal/logger"
+	"github.com/seemsod1/api-project/pkg/logger"
 
 	"github.com/seemsod1/api-project/internal/config"
 	"github.com/seemsod1/api-project/internal/driver"

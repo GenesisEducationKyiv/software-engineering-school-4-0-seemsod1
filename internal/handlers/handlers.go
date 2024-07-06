@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/seemsod1/api-project/internal/logger"
+	"github.com/seemsod1/api-project/pkg/logger"
 )
 
 // Repo is the repository used by the handlers

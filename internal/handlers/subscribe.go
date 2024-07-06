@@ -2,16 +2,18 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+
+	"github.com/seemsod1/api-project/pkg/forms"
+	"github.com/seemsod1/api-project/pkg/timezone"
 
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
 
 	"go.uber.org/zap"
 
 	"github.com/go-chi/render"
-	"github.com/seemsod1/api-project/internal/forms"
 	"github.com/seemsod1/api-project/internal/models"
-	"github.com/seemsod1/api-project/internal/timezone"
 )
 
 type Subscriber interface {
@@ -23,7 +25,7 @@ type Subscriber interface {
 
 // Subscribe subscribes a user to the newsletter
 func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
-	email, err := forms.ParseEmail(r)
+	email, err := parseEmail(r)
 	if err != nil {
 		m.Logger.Error("Invalid email", zap.Error(err))
 		http.Error(w, "Invalid email", http.StatusBadRequest)
@@ -56,7 +58,7 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 // Unsubscribe unsubscribes a user from the newsletter
 func (m *Repository) Unsubscribe(w http.ResponseWriter, r *http.Request) {
-	email, err := forms.ParseEmail(r)
+	email, err := parseEmail(r)
 	if err != nil {
 		m.Logger.Error("Invalid email", zap.Error(err))
 		http.Error(w, "Invalid email", http.StatusBadRequest)
@@ -76,4 +78,22 @@ func (m *Repository) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	render.JSON(w, r, map[string]string{"message": "Successfully unsubscribed"})
+}
+
+func parseEmail(r *http.Request) (string, error) {
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		return "", fmt.Errorf("unable to parse form")
+	}
+
+	email := r.Form.Get("email")
+
+	form := forms.New(r.PostForm)
+	form.Required("email")
+	form.IsEmail("email")
+
+	if !form.Valid() {
+		return "", fmt.Errorf("invalid email")
+	}
+
+	return email, nil
 }

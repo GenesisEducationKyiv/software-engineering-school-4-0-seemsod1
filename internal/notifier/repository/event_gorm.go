@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/seemsod1/api-project/internal/notifier"
+	"github.com/seemsod1/api-project/pkg/notifier"
 	"gorm.io/gorm"
 )
 

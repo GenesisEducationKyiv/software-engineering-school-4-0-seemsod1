@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/seemsod1/api-project/internal/forms"
+	"github.com/seemsod1/api-project/pkg/forms"
 )
 
 func TestForm_Valid(t *testing.T) {

@@ -7,12 +7,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/seemsod1/api-project/internal/logger"
+	"github.com/seemsod1/api-project/pkg/timezone"
+
+	"github.com/seemsod1/api-project/pkg/logger"
 
 	"github.com/seemsod1/api-project/internal/handlers"
 	"github.com/seemsod1/api-project/internal/models"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
-	"github.com/seemsod1/api-project/internal/timezone"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

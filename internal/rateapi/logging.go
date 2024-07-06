@@ -3,7 +3,7 @@ package rateapi
 import (
 	"context"
 
-	"github.com/seemsod1/api-project/internal/logger"
+	"github.com/seemsod1/api-project/pkg/logger"
 )
 
 type RateService interface {

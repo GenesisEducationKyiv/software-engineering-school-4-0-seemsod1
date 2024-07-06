@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/seemsod1/api-project/internal/notifier"
+	"github.com/seemsod1/api-project/pkg/notifier"
 
-	"github.com/seemsod1/api-project/internal/logger"
+	"github.com/seemsod1/api-project/pkg/logger"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -107,7 +107,12 @@ func publishEvent(writer *kafka.Writer, key, message []byte) error {
 		log.Printf("Failed to dial leader: %v", err)
 		return err
 	}
-	defer conn.Close()
+	defer func(conn *kafka.Conn) {
+		err = conn.Close()
+		if err != nil {
+			log.Printf("Failed to close connection with kafka: %v", err)
+		}
+	}(conn)
 
 	_, err = conn.WriteMessages(
 		kafka.Message{

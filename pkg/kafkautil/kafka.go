@@ -1,4 +1,4 @@
-package broker
+package kafkautil
 
 import (
 	"fmt"
@@ -24,7 +24,12 @@ func NewKafkaTopic(brokerAddress, topic string, numPartition int) error {
 	if err != nil {
 		return fmt.Errorf("failed to dial leader: %w", err)
 	}
-	defer conn.Close()
+	defer func(conn *kafka.Conn) {
+		err = conn.Close()
+		if err != nil {
+			fmt.Printf("failed to close connection with kafka: %v\n", err)
+		}
+	}(conn)
 
 	partitions, err := conn.ReadPartitions()
 	if err != nil {
