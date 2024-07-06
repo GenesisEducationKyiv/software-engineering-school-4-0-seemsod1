@@ -2,11 +2,9 @@ package notifier
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
-
-	emailStreamer "github.com/seemsod1/api-project/internal/email_streamer"
-	"github.com/segmentio/kafka-go"
 
 	"github.com/jordan-wright/email"
 	"github.com/seemsod1/api-project/internal/logger"
@@ -19,12 +17,11 @@ const (
 )
 
 type EmailNotifier struct {
-	Subscriber    Subscriber
-	Event         Event
-	Scheduler     Scheduler
-	RateService   RateService
-	Logger        *logger.Logger
-	KafkaProducer *kafka.Writer
+	Subscriber  SubscriberRepo
+	Event       EventRepo
+	Scheduler   Scheduler
+	RateService RateService
+	Logger      *logger.Logger
 }
 
 type (
@@ -40,24 +37,23 @@ type (
 		Start()
 		AddEverydayJob(task func(), minute int) error
 	}
-	Subscriber interface {
+	SubscriberRepo interface {
 		GetSubscribersWithTimezone(timezoneDiff int) ([]string, error)
 	}
-	Event interface {
-		AddToEvents([]emailStreamer.Event) error
+	EventRepo interface {
+		AddToEvents([]Event) error
 	}
 )
 
-func NewEmailNotifier(subs Subscriber, event Event, sch Scheduler, rateService RateService,
-	logg *logger.Logger, kafkaProducer *kafka.Writer,
+func NewEmailNotifier(subs SubscriberRepo, eventRepo EventRepo, sch Scheduler, rateService RateService,
+	logg *logger.Logger,
 ) *EmailNotifier {
 	return &EmailNotifier{
-		Subscriber:    subs,
-		Event:         event,
-		Scheduler:     sch,
-		RateService:   rateService,
-		Logger:        logg,
-		KafkaProducer: kafkaProducer,
+		Subscriber:  subs,
+		Event:       eventRepo,
+		Scheduler:   sch,
+		RateService: rateService,
+		Logger:      logg,
 	}
 }
 
@@ -103,28 +99,37 @@ func (et *EmailNotifier) SendRate(recipients []string) {
 	}
 	msgText := fmt.Sprintf("Current rate: %.2f", rate)
 
-	messages := make([]emailStreamer.Event, 0, len(recipients))
+	messages := make([]Event, 0, len(recipients))
 	for _, recipient := range recipients {
-		data := emailStreamer.Data{
+		data := Data{
 			Recipient: recipient,
 			Message:   msgText,
 		}
-		serializedData, er := emailStreamer.SerializeData(data)
+		serializedData, er := serializeData(data)
 		if er != nil {
 			et.Logger.Errorf("Error serializing data: %v\n", err)
 			return
 		}
 
-		msg := emailStreamer.Event{
+		msg := Event{
 			Data: serializedData,
 		}
 		messages = append(messages, msg)
 	}
 
 	if err = et.Event.AddToEvents(messages); err != nil {
-		et.Logger.Errorf("Error adding to outbox: %v\n", err)
+		et.Logger.Errorf("Error adding to events list: %v\n", err)
 		return
 	}
 
 	et.Logger.Info("All messages saved to outbox")
+}
+
+// serializeData converts a Message struct to a JSON string, excluding ID, CreatedAt and SentAt
+func serializeData(data Data) (string, error) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize message: %w", err)
+	}
+	return string(jsonData), nil
 }

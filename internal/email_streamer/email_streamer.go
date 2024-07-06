@@ -3,9 +3,10 @@ package emailstreamer
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"log"
 	"time"
+
+	"github.com/seemsod1/api-project/internal/notifier"
 
 	"github.com/seemsod1/api-project/internal/logger"
 	"github.com/segmentio/kafka-go"
@@ -18,61 +19,32 @@ const (
 )
 
 type EmailStreamer struct {
-	Storage       Repo
-	KafkaProducer *kafka.Writer
-	Logger        *logger.Logger
+	EventStorage    EventRepo
+	StreamerStorage StreamerRepo
+	KafkaProducer   *kafka.Writer
+	Logger          *logger.Logger
 }
 
 type (
-	Repo interface {
-		GetOutboxEvents(offset uint, limit int) ([]Event, error)
+	EventRepo interface {
+		GetEvents(offset uint, limit int) ([]notifier.Event, error)
+	}
+	StreamerRepo interface {
 		ChangeOffset(msg Streamer) error
 		GetOffset(topic string, partition int) (uint, error)
 	}
 )
 
-func NewEmailStreamer(storage Repo, kafkaProducer *kafka.Writer, logg *logger.Logger) *EmailStreamer {
+func NewEmailStreamer(eventStorage EventRepo,
+	streamerStorage StreamerRepo,
+	kafkaProducer *kafka.Writer,
+	logg *logger.Logger,
+) *EmailStreamer {
 	return &EmailStreamer{
-		Storage:       storage,
-		KafkaProducer: kafkaProducer,
-		Logger:        logg,
-	}
-}
-
-func NewKafkaTopic(brokerAddress, topic string) error {
-	conn, err := kafka.Dial("tcp", brokerAddress)
-	if err != nil {
-		return fmt.Errorf("failed to dial leader: %w", err)
-	}
-	defer conn.Close()
-
-	partitions, err := conn.ReadPartitions()
-	if err != nil {
-		return fmt.Errorf("failed to read partitions: %w", err)
-	}
-
-	for _, p := range partitions {
-		if p.Topic == topic {
-			return nil
-		}
-	}
-
-	err = conn.CreateTopics(kafka.TopicConfig{
-		Topic:             topic,
-		NumPartitions:     1,
-		ReplicationFactor: 1,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create topic: %w", err)
-	}
-	return nil
-}
-
-func NewKafkaWriter(kafkaURL, topic string) *kafka.Writer {
-	return &kafka.Writer{
-		Addr:     kafka.TCP(kafkaURL),
-		Topic:    topic,
-		Balancer: &kafka.LeastBytes{},
+		EventStorage:    eventStorage,
+		StreamerStorage: streamerStorage,
+		KafkaProducer:   kafkaProducer,
+		Logger:          logg,
 	}
 }
 
@@ -92,13 +64,13 @@ func (es *EmailStreamer) Process(ctx context.Context) {
 }
 
 func (es *EmailStreamer) processEvents() {
-	off, err := es.Storage.GetOffset(es.KafkaProducer.Topic, 1)
+	off, err := es.StreamerStorage.GetOffset(es.KafkaProducer.Topic, 1)
 	if err != nil {
 		es.Logger.Errorf("Error retrieving last offset: %v", err)
 		time.Sleep(RecoverTime)
 		return
 	}
-	events, err := es.Storage.GetOutboxEvents(off, BatchSize)
+	events, err := es.EventStorage.GetEvents(off, BatchSize)
 	if err != nil {
 		es.Logger.Errorf("Error retrieving outbox messages: %v", err)
 		time.Sleep(RecoverTime)
@@ -117,7 +89,7 @@ func (es *EmailStreamer) processEvents() {
 			Partition:  1,
 			LastOffset: msg.ID,
 		}
-		if err = es.Storage.ChangeOffset(streamMsg); err != nil {
+		if err = es.StreamerStorage.ChangeOffset(streamMsg); err != nil {
 			es.Logger.Errorf("Failed to add message to stream: %v", err)
 			continue
 		}

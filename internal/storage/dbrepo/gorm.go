@@ -1,8 +1,10 @@
 package dbrepo
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/seemsod1/api-project/internal/models"
@@ -44,8 +46,11 @@ func (m *gormDBRepo) RemoveSubscriber(email string) error {
 
 // GetSubscribersWithTimezone returns all subscribers from the database
 func (m *gormDBRepo) GetSubscribersWithTimezone(timezone int) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	var emails []string
-	err := m.DB.Model(&models.Subscriber{}).Where("timezone = ?", timezone).Pluck("email", &emails).Error
+	err := m.DB.WithContext(ctx).Model(&models.Subscriber{}).Where("timezone = ?", timezone).Pluck("email", &emails).Error
 	if err != nil {
 		return nil, fmt.Errorf("gorm getting subscribers: %w", err)
 	}
@@ -55,8 +60,11 @@ func (m *gormDBRepo) GetSubscribersWithTimezone(timezone int) ([]string, error) 
 
 // GetSubscribers returns all subscribers from the database
 func (m *gormDBRepo) GetSubscribers() ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	var emails []string
-	err := m.DB.Model(&models.Subscriber{}).Pluck("email", &emails).Error
+	err := m.DB.WithContext(ctx).Model(&models.Subscriber{}).Pluck("email", &emails).Error
 	if err != nil {
 		return nil, fmt.Errorf("gorm getting subscribers: %w", err)
 	}

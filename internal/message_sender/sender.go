@@ -3,10 +3,10 @@ package messagesender
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"net/smtp"
 
-	emailstreamer "github.com/seemsod1/api-project/internal/email_streamer"
 	"github.com/seemsod1/api-project/internal/logger"
 
 	"github.com/segmentio/kafka-go"
@@ -25,7 +25,7 @@ type SMTPEmailSender struct {
 }
 
 type EventStorage interface {
-	ConsumeEvent(event emailstreamer.EventProcessed) error
+	ConsumeEvent(event EventProcessed) error
 	CheckEventProcessed(id int) (bool, error)
 }
 
@@ -63,7 +63,7 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 			s.Logger.Warnf("reading message: %v", err)
 			continue
 		}
-		data, err := emailstreamer.DeserializeData(m.Value)
+		data, err := deserializeData(m.Value)
 		if err != nil {
 			s.Logger.Warnf("deserializing message: %v", err)
 			continue
@@ -93,7 +93,7 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 			s.Logger.Warnf("sending email: %v", err)
 			continue
 		}
-		event := emailstreamer.EventProcessed{
+		event := EventProcessed{
 			ID:   uint(binary.BigEndian.Uint64(m.Key)),
 			Data: string(m.Value),
 		}
@@ -105,4 +105,14 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 			s.Logger.Warnf("committing message: %v", err)
 		}
 	}
+}
+
+// deserializeData deserializes JSON string to Data struct
+func deserializeData(jsonData []byte) (Data, error) {
+	var data Data
+	err := json.Unmarshal(jsonData, &data)
+	if err != nil {
+		return Data{}, err
+	}
+	return data, nil
 }

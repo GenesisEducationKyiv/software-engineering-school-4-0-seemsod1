@@ -11,15 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/seemsod1/api-project/internal/broker"
 	emailStreamer "github.com/seemsod1/api-project/internal/email_streamer"
 	streamerrepo "github.com/seemsod1/api-project/internal/email_streamer/repository"
-	"github.com/seemsod1/api-project/internal/handlers"
 	messagesender "github.com/seemsod1/api-project/internal/message_sender"
-	"github.com/seemsod1/api-project/internal/notifier"
-	"github.com/seemsod1/api-project/internal/rateapi"
-	"github.com/seemsod1/api-project/internal/rateapi/chain"
-	"github.com/seemsod1/api-project/internal/scheduler"
-	"github.com/seemsod1/api-project/internal/storage/dbrepo"
+	messagesenderrepo "github.com/seemsod1/api-project/internal/message_sender/repository"
+	notifierrepo "github.com/seemsod1/api-project/internal/notifier/repository"
 
 	"github.com/joho/godotenv"
 	"github.com/seemsod1/api-project/internal/config"
@@ -27,6 +24,16 @@ import (
 )
 
 const portNumber = ":8080"
+
+type (
+	consumer interface {
+		StartReceivingMessages(ctx context.Context)
+	}
+
+	producer interface {
+		Process(ctx context.Context)
+	}
+)
 
 func run() error {
 	if err := godotenv.Load(); err != nil {
@@ -45,33 +52,11 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("setting up application: %w", err)
 	}
-
-	CoinBaseProvider := rateapi.NewLoggingClient(os.Getenv("COINBASE_SITE"),
-		rateapi.NewCoinbaseProvider(os.Getenv("COINBASE_URL")), logg)
-
-	PrivatBankProvider := rateapi.NewLoggingClient(os.Getenv("PRIVATBANK_SITE"),
-		rateapi.NewPrivatBankProvider(os.Getenv("PRIVATBANK_URL")), logg)
-
-	NBUProvider := rateapi.NewLoggingClient(os.Getenv("NBU_SITE"),
-		rateapi.NewNBUProvider(os.Getenv("NBU_URL")), logg)
-
-	BaseChain := chain.NewBaseChain(CoinBaseProvider)
-	SecondChain := chain.NewBaseChain(PrivatBankProvider)
-	ThirdChain := chain.NewBaseChain(NBUProvider)
-
-	BaseChain.SetNext(SecondChain)
-	SecondChain.SetNext(ThirdChain)
-
-	dbRepository := dbrepo.NewGormRepo(db.DB)
-	streamRepository, err := streamerrepo.NewStreamerRepo(db.DB)
-	if err != nil {
-		return fmt.Errorf("creating streamer repository: %w", err)
-	}
-
 	kafkaURL := os.Getenv("KAFKA_URL")
 
-	kafReader := emailStreamer.NewKafkaConsumer(kafkaURL, "emails", "email_sender_group")
-	if err = emailStreamer.NewKafkaTopic(kafkaURL, "emails"); err != nil {
+	kafReader := broker.NewKafkaConsumer(kafkaURL, "emails", "email_sender_group")
+
+	if err = broker.NewKafkaTopic(kafkaURL, "emails", 1); err != nil {
 		return fmt.Errorf("creating kafka topic: %w", err)
 	}
 
@@ -81,7 +66,12 @@ func run() error {
 		return fmt.Errorf("creating mail sender config: %w", err)
 	}
 
-	emailSender, err := messagesender.NewSMTPEmailSender(cfg, kafReader, streamRepository, logg)
+	senderEventRepo, err := messagesenderrepo.NewEventDBRepo(db.DB)
+	if err != nil {
+		return fmt.Errorf("creating sender event repository: %w", err)
+	}
+
+	emailSender, err := messagesender.NewSMTPEmailSender(cfg, kafReader, senderEventRepo, logg)
 	if err != nil {
 		logg.Error("Cannot create email sender! Dying...")
 		return fmt.Errorf("creating email sender: %w", err)
@@ -90,26 +80,22 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go emailSender.StartReceivingMessages(ctx)
+	go eventConsumer(ctx, emailSender)
 
-	kafWriter := emailStreamer.NewKafkaWriter(kafkaURL, "emails")
+	kafWriter := broker.NewKafkaProducer(kafkaURL, "emails")
 
-	es := emailStreamer.NewEmailStreamer(streamRepository, kafWriter, logg)
-	go es.Process(ctx)
-
-	sch := scheduler.NewGoCronScheduler()
-
-	logg.Info("Starting mail notifier...")
-
-	notification := notifier.NewEmailNotifier(dbRepository, streamRepository, sch, BaseChain, logg, kafWriter)
-
-	repo := handlers.NewRepo(dbRepository, BaseChain, notification, logg)
-	handlers.NewHandlers(repo)
-
-	if err = notification.Start(); err != nil {
-		logg.Error("Cannot start mail notifier! Dying...")
-		return fmt.Errorf("starting notifier: %w", err)
+	streamRepository, err := streamerrepo.NewStreamerRepo(db.DB)
+	if err != nil {
+		return fmt.Errorf("creating streamer repository: %w", err)
 	}
+
+	notifierRepository, err := notifierrepo.NewEventDBRepo(db.DB)
+	if err != nil {
+		return fmt.Errorf("creating notifier repository: %w", err)
+	}
+
+	es := emailStreamer.NewEmailStreamer(notifierRepository, streamRepository, kafWriter, logg)
+	go eventProducer(ctx, es)
 
 	srv := &http.Server{
 		Addr:        portNumber,
@@ -117,27 +103,45 @@ func run() error {
 		ReadTimeout: 30 * time.Second,
 	}
 
+	handleShutdown(srv, cancel)
+
+	return nil
+}
+
+// handleShutdown handles a graceful shutdown of the application.
+func handleShutdown(srv *http.Server, cancelFunc context.CancelFunc) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		logg.Infof("Server is running on port %s", portNumber)
-		if err = srv.ListenAndServe(); err != nil && !errors.Is(http.ErrServerClosed, err) {
-			logg.Fatalf("Error starting server: %v", err)
+		<-stop
+		cancelFunc()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		log.Println("Shutting down server...")
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("HTTP server shutdown failed: %v", err)
 		}
+		log.Println("Server has been stopped")
 	}()
 
-	<-stop
-
-	logg.Info("Shutting down server...")
-
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err = srv.Shutdown(ctx); err != nil {
-		return fmt.Errorf("shutting down server: %w", err)
+	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		log.Fatalf("HTTP server ListenAndServe: %v", err)
 	}
+}
 
-	logg.Info("Server shutdown complete.")
-	return nil
+// eventProducer runs an event dispatcher.
+func eventProducer(ctx context.Context, p producer) {
+	p.Process(ctx)
+
+	<-ctx.Done()
+	log.Println("Shutting down event producer...")
+}
+
+// eventProducer runs an event dispatcher.
+func eventConsumer(ctx context.Context, c consumer) {
+	c.StartReceivingMessages(ctx)
+
+	<-ctx.Done()
+	log.Println("Shutting down event consumer...")
 }
