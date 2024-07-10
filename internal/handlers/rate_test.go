@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/seemsod1/api-project/internal/logger"
+	"github.com/seemsod1/api-project/pkg/logger"
 
 	"github.com/seemsod1/api-project/internal/handlers"
 	"github.com/stretchr/testify/assert"

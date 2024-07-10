@@ -16,23 +16,25 @@ type Chain interface {
 
 var ErrNoRateProviders = errors.New("no available providers to get rate")
 
-type BaseChain struct {
+type Node struct {
 	rateService RateService
 	next        Chain
 }
 
-func NewBaseChain(fetcher RateService) *BaseChain {
-	return &BaseChain{rateService: fetcher}
+func NewNode(fetcher RateService) *Node {
+	return &Node{
+		rateService: fetcher,
+	}
 }
 
-func (b *BaseChain) SetNext(chainInterface Chain) {
-	b.next = chainInterface
+func (n *Node) SetNext(chainInterface Chain) {
+	n.next = chainInterface
 }
 
-func (b *BaseChain) GetRate(ctx context.Context, base, target string) (float64, error) {
-	rate, err := b.rateService.GetRate(ctx, base, target)
+func (n *Node) GetRate(ctx context.Context, base, target string) (float64, error) {
+	rate, err := n.rateService.GetRate(ctx, base, target)
 	if err != nil {
-		next := b.next
+		next := n.next
 		if next == nil {
 			return -1, ErrNoRateProviders
 		}

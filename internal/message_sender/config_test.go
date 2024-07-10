@@ -1,47 +1,48 @@
-package notifier_test
+package messagesender_test
 
 import (
 	"os"
 	"testing"
 
-	"github.com/seemsod1/api-project/internal/notifier"
+	messagesender "github.com/seemsod1/api-project/internal/message_sender"
+
 	"github.com/stretchr/testify/require"
 )
 
 func TestEmailNotifierConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		c       *notifier.EmailNotifierConfig
+		c       *messagesender.EmailSenderConfig
 		wantErr bool
 	}{
 		{
 			name:    "valid config",
-			c:       &notifier.EmailNotifierConfig{Host: "smtp.gmail.com", Port: "587", From: "example@gmail.com", Password: "password"},
+			c:       &messagesender.EmailSenderConfig{Host: "smtp.gmail.com", Port: "587", From: "example@gmail.com", Password: "password"},
 			wantErr: false,
 		},
 		{
 			name:    "invalid config - missing From",
-			c:       &notifier.EmailNotifierConfig{Host: "smtp.gmail.com", Port: "587", From: "", Password: "password"},
+			c:       &messagesender.EmailSenderConfig{Host: "smtp.gmail.com", Port: "587", From: "", Password: "password"},
 			wantErr: true,
 		},
 		{
 			name:    "invalid config - missing Host",
-			c:       &notifier.EmailNotifierConfig{Host: "", Port: "587", From: "abc", Password: "password"},
+			c:       &messagesender.EmailSenderConfig{Host: "", Port: "587", From: "abc", Password: "password"},
 			wantErr: true,
 		},
 		{
 			name:    "invalid config - missing Port",
-			c:       &notifier.EmailNotifierConfig{Host: "smtp.gmail.com", Port: "", From: "abc", Password: "password"},
+			c:       &messagesender.EmailSenderConfig{Host: "smtp.gmail.com", Port: "", From: "abc", Password: "password"},
 			wantErr: true,
 		},
 		{
 			name:    "invalid config - missing Password",
-			c:       &notifier.EmailNotifierConfig{Host: "smtp.gmail.com", Port: "587", From: "abc", Password: ""},
+			c:       &messagesender.EmailSenderConfig{Host: "smtp.gmail.com", Port: "587", From: "abc", Password: ""},
 			wantErr: true,
 		},
 		{
 			name:    "invalid config - missing all",
-			c:       &notifier.EmailNotifierConfig{Host: "", Port: "", From: "", Password: ""},
+			c:       &messagesender.EmailSenderConfig{Host: "", Port: "", From: "", Password: ""},
 			wantErr: true,
 		},
 	}
@@ -58,7 +59,7 @@ func TestEmailNotifierConfig_Validate(t *testing.T) {
 }
 
 func TestNewEmailNotifierConfig_Invalid(t *testing.T) {
-	_, err := notifier.NewEmailNotifierConfig()
+	_, err := messagesender.NewEmailSenderConfig()
 	require.Error(t, err)
 }
 
@@ -75,6 +76,6 @@ func TestNewEmailNotifierConfig_Valid(t *testing.T) {
 		_ = os.Unsetenv("MAILER_PASSWORD")
 	}()
 
-	_, err := notifier.NewEmailNotifierConfig()
+	_, err := messagesender.NewEmailSenderConfig()
 	require.NoError(t, err)
 }

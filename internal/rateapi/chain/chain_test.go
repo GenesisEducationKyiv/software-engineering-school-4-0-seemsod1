@@ -35,7 +35,7 @@ func TestBaseChain_GetRate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockProvider := newMockProvider()
-			provider := chain.NewBaseChain(mockProvider)
+			provider := chain.NewNode(mockProvider)
 
 			mockProvider.On("GetRate", context.Background(), "USD", "UAH").Return(tc.mockReturn, tc.mockErr)
 
@@ -75,12 +75,12 @@ func TestBaseChain_GetRate_WithNext(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockProvider := newMockProvider()
-			provider := chain.NewBaseChain(mockProvider)
+			provider := chain.NewNode(mockProvider)
 
 			mockProvider.On("GetRate", context.Background(), "USD", "UAH").Return(tc.mockReturnFirst, tc.mockErrFirst)
 
 			mockProvider2 := newMockProvider()
-			provider2 := chain.NewBaseChain(mockProvider2)
+			provider2 := chain.NewNode(mockProvider2)
 			provider.SetNext(provider2)
 
 			mockProvider2.On("GetRate", context.Background(), "USD", "UAH").Return(tc.mockReturnNext, tc.mockErrNext)

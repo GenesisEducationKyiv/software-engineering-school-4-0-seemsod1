@@ -7,13 +7,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/seemsod1/api-project/internal/logger"
+	"github.com/seemsod1/api-project/pkg/timezone"
 
-	customerrors "github.com/seemsod1/api-project/internal/errors"
+	"github.com/seemsod1/api-project/pkg/logger"
+
 	"github.com/seemsod1/api-project/internal/handlers"
 	"github.com/seemsod1/api-project/internal/models"
 	"github.com/seemsod1/api-project/internal/storage/dbrepo"
-	"github.com/seemsod1/api-project/internal/timezone"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -90,7 +90,7 @@ func TestSubscribeIntegration(t *testing.T) {
 			headers: map[string]string{
 				"Accept-Timezone": "UTC",
 			},
-			mockReturn: customerrors.ErrDuplicatedKey,
+			mockReturn: dbrepo.ErrorDuplicateSubscription,
 			wantStatus: http.StatusConflict,
 		},
 		{

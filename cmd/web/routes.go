@@ -17,8 +17,14 @@ func routes() http.Handler {
 	mux.Use(middleware.Recoverer)
 	mux.Use(EnableCORS)
 
-	mux.Get("/rate", handlers.Repo.Rate)
-	mux.Post("/subscribe", handlers.Repo.Subscribe)
+	mux.Route("/api", func(mux chi.Router) {
+		mux.Route("/v1", func(mux chi.Router) {
+			mux.Get("/rate", handlers.Repo.Rate)
+			mux.Post("/subscribe", handlers.Repo.Subscribe)
+			mux.Post("/unsubscribe", handlers.Repo.Unsubscribe)
+			mux.Post("/sendEmails", handlers.Repo.SendEmails)
+		})
+	})
 
 	return mux
 }
