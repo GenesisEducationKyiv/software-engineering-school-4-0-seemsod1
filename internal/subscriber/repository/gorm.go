@@ -1,4 +1,4 @@
-package dbrepo
+package subscriberrepo
 
 import (
 	"context"
@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	subscribermodels "github.com/seemsod1/api-project/internal/subscriber/models"
+
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/seemsod1/api-project/internal/models"
 )
 
 var (
@@ -16,8 +17,8 @@ var (
 )
 
 // AddSubscriber adds a new subscriber to the database
-func (m *gormDBRepo) AddSubscriber(subscriber models.Subscriber) error {
-	err := m.DB.Create(&subscriber).Error
+func (m *SubscriberDBRepo) AddSubscriber(subs subscribermodels.Subscriber) error {
+	err := m.DB.Create(&subs).Error
 
 	duplicateEntryError := &pgconn.PgError{Code: "23505"}
 
@@ -31,8 +32,8 @@ func (m *gormDBRepo) AddSubscriber(subscriber models.Subscriber) error {
 }
 
 // RemoveSubscriber removes a subscriber from the database
-func (m *gormDBRepo) RemoveSubscriber(email string) error {
-	res := m.DB.Where("email = ?", email).Delete(&models.Subscriber{})
+func (m *SubscriberDBRepo) RemoveSubscriber(email string) error {
+	res := m.DB.Where("email = ?", email).Delete(&subscribermodels.Subscriber{})
 	if res.Error != nil {
 		return fmt.Errorf("gorm deleting subscriber: %w", res.Error)
 	}
@@ -45,12 +46,12 @@ func (m *gormDBRepo) RemoveSubscriber(email string) error {
 }
 
 // GetSubscribersWithTimezone returns all subscribers from the database
-func (m *gormDBRepo) GetSubscribersWithTimezone(timezone int) ([]string, error) {
+func (m *SubscriberDBRepo) GetSubscribersWithTimezone(timezone int) ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var emails []string
-	err := m.DB.WithContext(ctx).Model(&models.Subscriber{}).Where("timezone = ?", timezone).Pluck("email", &emails).Error
+	err := m.DB.WithContext(ctx).Model(&subscribermodels.Subscriber{}).Where("timezone = ?", timezone).Pluck("email", &emails).Error
 	if err != nil {
 		return nil, fmt.Errorf("gorm getting subscribers: %w", err)
 	}
@@ -59,12 +60,12 @@ func (m *gormDBRepo) GetSubscribersWithTimezone(timezone int) ([]string, error) 
 }
 
 // GetSubscribers returns all subscribers from the database
-func (m *gormDBRepo) GetSubscribers() ([]string, error) {
+func (m *SubscriberDBRepo) GetSubscribers() ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var emails []string
-	err := m.DB.WithContext(ctx).Model(&models.Subscriber{}).Pluck("email", &emails).Error
+	err := m.DB.WithContext(ctx).Model(&subscribermodels.Subscriber{}).Pluck("email", &emails).Error
 	if err != nil {
 		return nil, fmt.Errorf("gorm getting subscribers: %w", err)
 	}

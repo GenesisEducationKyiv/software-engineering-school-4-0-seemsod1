@@ -5,22 +5,23 @@ import (
 	"fmt"
 	"net/http"
 
+	customerrepo "github.com/seemsod1/api-project/internal/customer/repository"
+	subscriberrepo "github.com/seemsod1/api-project/internal/subscriber/repository"
+
 	"github.com/seemsod1/api-project/pkg/forms"
 	"github.com/seemsod1/api-project/pkg/timezone"
-
-	"github.com/seemsod1/api-project/internal/storage/dbrepo"
 
 	"go.uber.org/zap"
 
 	"github.com/go-chi/render"
-	"github.com/seemsod1/api-project/internal/models"
 )
 
+type Customer interface {
+	StartTransaction(email string, timezone int) error
+}
+
 type Subscriber interface {
-	AddSubscriber(subscriber models.Subscriber) error
 	RemoveSubscriber(email string) error
-	GetSubscribersWithTimezone(timezone int) ([]string, error)
-	GetSubscribers() ([]string, error)
 }
 
 // Subscribe subscribes a user to the newsletter
@@ -38,20 +39,13 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = m.Subscriber.AddSubscriber(models.Subscriber{
-		Email:    email,
-		Timezone: offset,
-	}); err != nil {
-		if errors.Is(err, dbrepo.ErrorDuplicateSubscription) {
+	if er := m.Customer.StartTransaction(email, offset); er != nil {
+		if errors.Is(er, customerrepo.ErrorDuplicateCustomer) {
 			m.Logger.Errorf("%s: %s", email, "Already exists")
 			http.Error(w, "Already exists", http.StatusConflict)
 			return
 		}
-		m.Logger.Errorf("adding subscriber: %w", err)
-		http.Error(w, "Failed to subscribe", http.StatusInternalServerError)
-		return
 	}
-
 	w.WriteHeader(http.StatusOK)
 	render.JSON(w, r, map[string]string{"message": "Successfully subscribed"})
 }
@@ -66,7 +60,7 @@ func (m *Repository) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = m.Subscriber.RemoveSubscriber(email); err != nil {
-		if errors.Is(err, dbrepo.ErrorNonExistentSubscription) {
+		if errors.Is(err, subscriberrepo.ErrorNonExistentSubscription) {
 			m.Logger.Errorf("%s: %s", email, "Not found")
 			http.Error(w, "Not found", http.StatusNotFound)
 			return

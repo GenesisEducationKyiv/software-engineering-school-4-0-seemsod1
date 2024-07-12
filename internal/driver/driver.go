@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/seemsod1/api-project/internal/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -66,12 +65,4 @@ func (gd *GORMDriver) openDB(cfg *DatabaseConfig) *gorm.DB {
 	}
 
 	return db
-}
-
-func (gd *GORMDriver) RunMigrations() error {
-	err := gd.DB.AutoMigrate(&models.Subscriber{})
-	if err != nil {
-		return fmt.Errorf("auto migrating: %w", err)
-	}
-	return nil
 }

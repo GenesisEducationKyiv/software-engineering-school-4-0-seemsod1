@@ -22,7 +22,6 @@ func routes() http.Handler {
 			mux.Get("/rate", handlers.Repo.Rate)
 			mux.Post("/subscribe", handlers.Repo.Subscribe)
 			mux.Post("/unsubscribe", handlers.Repo.Unsubscribe)
-			mux.Post("/sendEmails", handlers.Repo.SendEmails)
 		})
 	})
 
