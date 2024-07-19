@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/seemsod1/api-project/internal/subscriber"
+
 	"github.com/seemsod1/api-project/pkg/kafkautil"
 
 	messagesender "github.com/seemsod1/api-project/internal/message_sender"
@@ -48,7 +50,7 @@ func run() error {
 		return fmt.Errorf("creating logger: %w", err)
 	}
 
-	db, err := setup(app, logg)
+	serv, err := setup(app, logg)
 	if err != nil {
 		return fmt.Errorf("setting up application: %w", err)
 	}
@@ -60,13 +62,21 @@ func run() error {
 		return fmt.Errorf("creating kafka topic: %w", err)
 	}
 
+	if err = kafkautil.NewKafkaTopic(kafkaURL, "subscription", 1); err != nil {
+		return fmt.Errorf("creating kafka topic: %w", err)
+	}
+
+	if err = kafkautil.NewKafkaTopic(kafkaURL, "subscription_responses", 1); err != nil {
+		return fmt.Errorf("creating kafka topic: %w", err)
+	}
+
 	cfg, err := messagesender.NewEmailSenderConfig()
 	if err != nil {
 		logg.Error("Cannot create mail sender config! Dying...")
 		return fmt.Errorf("creating mail sender config: %w", err)
 	}
 
-	senderEventRepo, err := messagesenderrepo.NewEventDBRepo(db.DB)
+	senderEventRepo, err := messagesenderrepo.NewEventDBRepo(serv.Driver.DB)
 	if err != nil {
 		return fmt.Errorf("creating sender event repository: %w", err)
 	}
@@ -84,18 +94,25 @@ func run() error {
 
 	kafWriter := kafkautil.NewKafkaProducer(kafkaURL, "emails")
 
-	streamRepository, err := notifierrepo.NewStreamerRepo(db.DB)
+	streamRepository, err := notifierrepo.NewStreamerRepo(serv.Driver.DB)
 	if err != nil {
 		return fmt.Errorf("creating streamer repository: %w", err)
 	}
 
-	notifierRepository, err := notifierrepo.NewEventDBRepo(db.DB)
+	notifierRepository, err := notifierrepo.NewEventDBRepo(serv.Driver.DB)
 	if err != nil {
 		return fmt.Errorf("creating notifier repository: %w", err)
 	}
 
 	es := emailStreamer.NewEmailStreamer(notifierRepository, streamRepository, kafWriter, logg)
 	go eventProducer(ctx, es)
+
+	subscriberKafkaWriter := kafkautil.NewKafkaProducer(kafkaURL, "subscription_responses")
+	subscriberKafkaReader := kafkautil.NewKafkaConsumer(kafkaURL, "subscription", "subscriber_group")
+	subs := subscriber.NewService(serv.SubscriberRepo, subscriberKafkaWriter, subscriberKafkaReader, logg)
+	go eventConsumer(ctx, subs)
+
+	go eventConsumer(ctx, serv.Customer.SagaCoordinator)
 
 	srv := &http.Server{
 		Addr:        portNumber,
