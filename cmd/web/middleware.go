@@ -1,6 +1,10 @@
 package main
 
-import "net/http"
+import (
+	"fmt"
+	"github.com/VictoriaMetrics/metrics"
+	"net/http"
+)
 
 // EnableCORS enables CORS
 func EnableCORS(h http.Handler) http.Handler {
@@ -13,6 +17,14 @@ func EnableCORS(h http.Handler) http.Handler {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func Handle(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s := fmt.Sprintf(`requests_total{path=%q}`, r.URL.Path)
+		metrics.GetOrCreateCounter(s).Inc()
 		h.ServeHTTP(w, r)
 	})
 }

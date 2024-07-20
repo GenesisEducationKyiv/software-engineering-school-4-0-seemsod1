@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/VictoriaMetrics/metrics"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -17,12 +18,18 @@ func routes() http.Handler {
 	mux.Use(middleware.Recoverer)
 	mux.Use(EnableCORS)
 
+	mux.Use(Handle)
+
 	mux.Route("/api", func(mux chi.Router) {
 		mux.Route("/v1", func(mux chi.Router) {
 			mux.Get("/rate", handlers.Repo.Rate)
 			mux.Post("/subscribe", handlers.Repo.Subscribe)
 			mux.Post("/unsubscribe", handlers.Repo.Unsubscribe)
+
 		})
+	})
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		metrics.WritePrometheus(w, true)
 	})
 
 	return mux
