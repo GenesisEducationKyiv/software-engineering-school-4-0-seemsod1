@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/seemsod1/api-project/pkg/notifier"
@@ -71,13 +72,13 @@ func (et *EmailNotifier) Start() error {
 		localTime := time.Now().Hour()
 		timezoneDiff := timezone.GetTimezoneDiff(localTime, TimeToSend)
 		if err := timezone.ValidateTimezoneDiff(timezoneDiff); err != nil {
-			et.Logger.Errorf("Error validating timezone diff: %v\n", err)
+			et.Logger.Error("Error validating timezone diff", zap.Error(err))
 			return
 		}
 
 		subs, er := et.Subscriber.GetSubscribersWithTimezone(timezoneDiff)
 		if er != nil {
-			et.Logger.Errorf("Error getting subscribers: %v\n", er)
+			et.Logger.Error("Error getting subscribers", zap.Error(er))
 			return
 		}
 
@@ -97,7 +98,7 @@ func (et *EmailNotifier) SendRate(recipients []string) {
 
 	rate, err := et.RateService.GetRate(ctx, "USD", "UAH")
 	if err != nil {
-		et.Logger.Errorf("Error getting rate: %v\n", err)
+		et.Logger.Error("Error getting rate", zap.Error(err))
 		return
 	}
 	msgText := fmt.Sprintf("Current rate: %.2f", rate)
@@ -110,7 +111,7 @@ func (et *EmailNotifier) SendRate(recipients []string) {
 		}
 		serializedData, er := serializeData(data)
 		if er != nil {
-			et.Logger.Errorf("Error serializing data: %v\n", err)
+			et.Logger.Error("Error serializing data", zap.Error(er))
 			return
 		}
 
@@ -121,7 +122,7 @@ func (et *EmailNotifier) SendRate(recipients []string) {
 	}
 
 	if err = et.Event.AddToEvents(messages); err != nil {
-		et.Logger.Errorf("Error adding to events list: %v\n", err)
+		et.Logger.Error("Error adding to events list", zap.Error(err))
 		return
 	}
 

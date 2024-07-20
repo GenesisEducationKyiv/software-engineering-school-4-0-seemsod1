@@ -3,7 +3,7 @@ package emailstreamer
 import (
 	"context"
 	"encoding/binary"
-	"log"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/seemsod1/api-project/pkg/notifier"
@@ -55,7 +55,7 @@ func (es *EmailStreamer) Process(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Shutting down processing...")
+			es.Logger.Info("Shutting down processing...")
 			return
 		case <-ticker.C:
 			es.processEvents()
@@ -66,13 +66,13 @@ func (es *EmailStreamer) Process(ctx context.Context) {
 func (es *EmailStreamer) processEvents() {
 	off, err := es.StreamerStorage.GetOffset(es.KafkaProducer.Topic, 1)
 	if err != nil {
-		es.Logger.Errorf("Error retrieving last offset: %v", err)
+		es.Logger.Error("Error retrieving last offset", zap.Error(err))
 		time.Sleep(RecoverTime)
 		return
 	}
 	events, err := es.EventStorage.GetEvents(off, BatchSize)
 	if err != nil {
-		es.Logger.Errorf("Error retrieving outbox messages: %v", err)
+		es.Logger.Error("Error retrieving outbox messages", zap.Error(err))
 		time.Sleep(RecoverTime)
 		return
 	}
@@ -80,8 +80,8 @@ func (es *EmailStreamer) processEvents() {
 	for _, msg := range events {
 		key := make([]byte, 8)
 		binary.BigEndian.PutUint64(key, uint64(msg.ID))
-		if err = publishEvent(es.KafkaProducer, key, []byte(msg.Data)); err != nil {
-			es.Logger.Errorf("Failed to write message to Kafka: %v", err)
+		if err = es.publishEvent(key, []byte(msg.Data)); err != nil {
+			es.Logger.Error("Failed to write message to broker", zap.Error(err), zap.String("key", string(key)))
 			continue
 		}
 		streamMsg := Streamer{
@@ -90,7 +90,7 @@ func (es *EmailStreamer) processEvents() {
 			LastOffset: msg.ID,
 		}
 		if err = es.StreamerStorage.ChangeOffset(streamMsg); err != nil {
-			es.Logger.Errorf("Failed to add message to stream: %v", err)
+			es.Logger.Error("Failed to add message to stream", zap.Error(err), zap.Any("message", msg))
 			continue
 		}
 
@@ -101,16 +101,16 @@ func (es *EmailStreamer) processEvents() {
 	time.Sleep(PeriodTime)
 }
 
-func publishEvent(writer *kafka.Writer, key, message []byte) error {
-	conn, err := kafka.DialLeader(context.Background(), "tcp", writer.Addr.String(), writer.Topic, 0)
+func (es *EmailStreamer) publishEvent(key, message []byte) error {
+	conn, err := kafka.DialLeader(context.Background(), "tcp", es.KafkaProducer.Addr.String(), es.KafkaProducer.Topic, 0)
 	if err != nil {
-		log.Printf("Failed to dial leader: %v", err)
+		es.Logger.Error("Failed to dial leader", zap.Error(err))
 		return err
 	}
 	defer func(conn *kafka.Conn) {
 		err = conn.Close()
 		if err != nil {
-			log.Printf("Failed to close connection with kafka: %v", err)
+			es.Logger.Error("Failed to close connection with kafka", zap.Error(err))
 		}
 	}(conn)
 
@@ -121,7 +121,7 @@ func publishEvent(writer *kafka.Writer, key, message []byte) error {
 		},
 	)
 	if err != nil {
-		log.Printf("Failed to write to leader: %v", err)
+		es.Logger.Error("Failed to write to leader", zap.Error(err))
 		return err
 	}
 	return nil

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"net/smtp"
 
 	"github.com/seemsod1/api-project/pkg/logger"
@@ -60,12 +61,12 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 	for {
 		m, err := s.KafkaReader.FetchMessage(ctx)
 		if err != nil {
-			s.Logger.Warnf("reading message: %v", err)
+			s.Logger.Warn("reading message", zap.Error(err))
 			continue
 		}
 		data, err := deserializeData(m.Value)
 		if err != nil {
-			s.Logger.Warnf("deserializing message: %v", err)
+			s.Logger.Warn("deserializing message", zap.Error(err))
 			continue
 		}
 		e := email.NewEmail()
@@ -74,23 +75,23 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 		e.Subject = "Currency rate notification: USD to UAH"
 		e.Text = []byte(data.Message)
 
-		s.Logger.Infof("Sending email to: %s", e.To)
+		s.Logger.Info("Sending message to", zap.String("email", data.Recipient))
 
 		isProcessed, err := s.EventStorage.CheckEventProcessed(int(binary.BigEndian.Uint64(m.Key)))
 		if err != nil {
-			s.Logger.Warnf("checking if event is processed: %v", err)
+			s.Logger.Warn("checking if event is processed", zap.Error(err))
 			continue
 		}
 		if isProcessed {
 			s.Logger.Info("Event is already processed")
 			if err = s.KafkaReader.CommitMessages(ctx, m); err != nil {
-				s.Logger.Warnf("committing message: %v", err)
+				s.Logger.Warn("committing message", zap.Error(err))
 				continue
 			}
 		}
 
 		if err = s.Send(e); err != nil {
-			s.Logger.Warnf("sending email: %v", err)
+			s.Logger.Warn("sending email", zap.Error(err))
 			continue
 		}
 		event := EventProcessed{
@@ -98,11 +99,11 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 			Data: string(m.Value),
 		}
 		if err = s.EventStorage.ConsumeEvent(event); err != nil {
-			s.Logger.Warnf("consuming event: %v", err)
+			s.Logger.Warn("consuming event", zap.Error(err))
 		}
 
 		if err = s.KafkaReader.CommitMessages(ctx, m); err != nil {
-			s.Logger.Warnf("committing message: %v", err)
+			s.Logger.Warn("committing message", zap.Error(err))
 		}
 	}
 }

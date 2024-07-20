@@ -2,6 +2,7 @@ package rateapi
 
 import (
 	"context"
+	"go.uber.org/zap"
 
 	"github.com/seemsod1/api-project/pkg/logger"
 )
@@ -28,10 +29,10 @@ func NewLoggingClient(name string, rateService RateService, log *logger.Logger) 
 func (l *LoggingClient) GetRate(ctx context.Context, base, target string) (float64, error) {
 	rate, err := l.rateService.GetRate(ctx, base, target)
 	if err != nil {
-		l.logger.Warnf("%s: Response: {error: %v}", l.name, err)
+		l.logger.Warn("Response:", zap.String("name", l.name), zap.Error(err))
 		return -1, err
 	}
 
-	l.logger.Infof("%s: Response: {price: %f}", l.name, rate)
+	l.logger.Info("Response:", zap.String("name", l.name), zap.Float64("rate", rate))
 	return rate, nil
 }

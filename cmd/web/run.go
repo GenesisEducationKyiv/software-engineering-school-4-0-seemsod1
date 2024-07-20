@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"os/signal"
@@ -38,19 +38,17 @@ type (
 )
 
 func run() error {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
-	}
+	_ = godotenv.Load()
 	app, err := config.NewAppConfig()
 	if err != nil {
 		return fmt.Errorf("creating app config: %w", err)
 	}
-	logg, err := logger.NewLogger(app.Mode)
+	applogg, err := logger.NewLogger(app.Mode)
 	if err != nil {
 		return fmt.Errorf("creating logger: %w", err)
 	}
 
-	serv, err := setup(app, logg)
+	serv, err := setup(app, applogg)
 	if err != nil {
 		return fmt.Errorf("setting up application: %w", err)
 	}
@@ -72,7 +70,7 @@ func run() error {
 
 	cfg, err := messagesender.NewEmailSenderConfig()
 	if err != nil {
-		logg.Error("Cannot create mail sender config! Dying...")
+		applogg.Error("Cannot create mail sender config! Dying...")
 		return fmt.Errorf("creating mail sender config: %w", err)
 	}
 
@@ -81,16 +79,16 @@ func run() error {
 		return fmt.Errorf("creating sender event repository: %w", err)
 	}
 
-	emailSender, err := messagesender.NewSMTPEmailSender(cfg, kafReader, senderEventRepo, logg)
+	emailSender, err := messagesender.NewSMTPEmailSender(cfg, kafReader, senderEventRepo, applogg)
 	if err != nil {
-		logg.Error("Cannot create email sender! Dying...")
+		applogg.Error("Cannot create email sender! Dying...")
 		return fmt.Errorf("creating email sender: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go eventConsumer(ctx, emailSender)
+	go eventConsumer(ctx, emailSender, applogg)
 
 	kafWriter := kafkautil.NewKafkaProducer(kafkaURL, "emails")
 
@@ -104,15 +102,15 @@ func run() error {
 		return fmt.Errorf("creating notifier repository: %w", err)
 	}
 
-	es := emailStreamer.NewEmailStreamer(notifierRepository, streamRepository, kafWriter, logg)
-	go eventProducer(ctx, es)
+	es := emailStreamer.NewEmailStreamer(notifierRepository, streamRepository, kafWriter, applogg)
+	go eventProducer(ctx, es, applogg)
 
 	subscriberKafkaWriter := kafkautil.NewKafkaProducer(kafkaURL, "subscription_responses")
 	subscriberKafkaReader := kafkautil.NewKafkaConsumer(kafkaURL, "subscription", "subscriber_group")
-	subs := subscriber.NewService(serv.SubscriberRepo, subscriberKafkaWriter, subscriberKafkaReader, logg)
-	go eventConsumer(ctx, subs)
+	subs := subscriber.NewService(serv.SubscriberRepo, subscriberKafkaWriter, subscriberKafkaReader, applogg)
+	go eventConsumer(ctx, subs, applogg)
 
-	go eventConsumer(ctx, serv.Customer.SagaCoordinator)
+	go eventConsumer(ctx, serv.Customer.SagaCoordinator, applogg)
 
 	srv := &http.Server{
 		Addr:        portNumber,
@@ -120,13 +118,13 @@ func run() error {
 		ReadTimeout: 30 * time.Second,
 	}
 
-	handleShutdown(srv, cancel)
+	handleShutdown(srv, cancel, applogg)
 
 	return nil
 }
 
 // handleShutdown handles a graceful shutdown of the application.
-func handleShutdown(srv *http.Server, cancelFunc context.CancelFunc) {
+func handleShutdown(srv *http.Server, cancelFunc context.CancelFunc, i *logger.Logger) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
@@ -135,30 +133,30 @@ func handleShutdown(srv *http.Server, cancelFunc context.CancelFunc) {
 		cancelFunc()
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		log.Println("Shutting down server...")
+		i.Info("Shutting down server...")
 		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("HTTP server shutdown failed: %v", err)
+			i.Error("HTTP server shutdown failed", zap.Error(err))
 		}
-		log.Println("Server has been stopped")
+		i.Info("Server has been stopped")
 	}()
 
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("HTTP server ListenAndServe: %v", err)
+		i.Fatal("HTTP server ListenAndServe", zap.Error(err))
 	}
 }
 
 // eventProducer runs an event dispatcher.
-func eventProducer(ctx context.Context, p producer) {
+func eventProducer(ctx context.Context, p producer, i *logger.Logger) {
 	p.Process(ctx)
 
 	<-ctx.Done()
-	log.Println("Shutting down event producer...")
+	i.Info("Shutting down event producer...")
 }
 
 // eventProducer runs an event dispatcher.
-func eventConsumer(ctx context.Context, c consumer) {
+func eventConsumer(ctx context.Context, c consumer, i *logger.Logger) {
 	c.StartReceivingMessages(ctx)
 
 	<-ctx.Done()
-	log.Println("Shutting down event consumer...")
+	i.Info("Shutting down event consumer...")
 }

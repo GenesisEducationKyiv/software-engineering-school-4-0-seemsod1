@@ -28,18 +28,18 @@ type services struct {
 }
 
 // setup sets up the application
-func setup(_ *config.AppConfig, logg *logger.Logger) (*services, error) {
+func setup(_ *config.AppConfig, l *logger.Logger) (*services, error) {
 	dr := driver.NewGORMDriver()
 
-	logg.Info("Connecting to database...")
+	l.Info("Connecting to database...")
 	db, err := dr.ConnectSQL()
 	if err != nil {
-		logg.Error("Cannot connect to database! Dying...")
+		l.Error("Cannot connect to database! Dying...")
 		return nil, fmt.Errorf("connecting to database: %w", err)
 	}
 
-	logg.Info("Setting up rate fetchers chain...")
-	fetcher := setupRateFetchersChain(logg)
+	l.Info("Setting up rate fetchers chain...")
+	fetcher := setupRateFetchersChain(l)
 
 	subsRepo, err := subscriberrepo.NewSubscriberDBRepo(db.DB)
 	if err != nil {
@@ -52,10 +52,10 @@ func setup(_ *config.AppConfig, logg *logger.Logger) (*services, error) {
 
 	sch := scheduler.NewGoCronScheduler()
 
-	logg.Info("Starting mail notifier...")
-	notificator := notifier.NewEmailNotifier(subsRepo, eventRepository, sch, fetcher, logg)
+	l.Info("Starting mail notifier...")
+	notificator := notifier.NewEmailNotifier(subsRepo, eventRepository, sch, fetcher, l)
 	if err = notificator.Start(); err != nil {
-		logg.Error("Cannot start mail notifier! Dying...")
+		l.Error("Cannot start mail notifier! Dying...")
 		return nil, fmt.Errorf("starting mail notifier: %w", err)
 	}
 	custRepo, err := customerrepo.NewCustomerRepo(db.DB)
@@ -66,11 +66,11 @@ func setup(_ *config.AppConfig, logg *logger.Logger) (*services, error) {
 	customerKafkaWriter := kafkautil.NewKafkaProducer(os.Getenv("KAFKA_URL"), "subscription")
 	customerKafkaReader := kafkautil.NewKafkaConsumer(os.Getenv("KAFKA_URL"), "subscription_responses", "customer_group")
 
-	coordinator := customer.NewSagaCoordinator(custRepo, customerKafkaWriter, customerKafkaReader, logg)
+	coordinator := customer.NewSagaCoordinator(custRepo, customerKafkaWriter, customerKafkaReader, l)
 
 	cust := customer.NewService(custRepo, coordinator)
 
-	repo := handlers.NewRepo(cust.SagaCoordinator, subsRepo, fetcher, logg)
+	repo := handlers.NewRepo(cust.SagaCoordinator, subsRepo, fetcher, l)
 	handlers.NewHandlers(repo)
 
 	return &services{
@@ -80,15 +80,15 @@ func setup(_ *config.AppConfig, logg *logger.Logger) (*services, error) {
 	}, nil
 }
 
-func setupRateFetchersChain(logg *logger.Logger) *chain.Node {
+func setupRateFetchersChain(l *logger.Logger) *chain.Node {
 	CoinBaseProvider := rateapi.NewLoggingClient(os.Getenv("COINBASE_SITE"),
-		rateapi.NewCoinbaseProvider(os.Getenv("COINBASE_URL")), logg)
+		rateapi.NewCoinbaseProvider(os.Getenv("COINBASE_URL")), l)
 
 	PrivatBankProvider := rateapi.NewLoggingClient(os.Getenv("PRIVATBANK_SITE"),
-		rateapi.NewPrivatBankProvider(os.Getenv("PRIVATBANK_URL")), logg)
+		rateapi.NewPrivatBankProvider(os.Getenv("PRIVATBANK_URL")), l)
 
 	NBUProvider := rateapi.NewLoggingClient(os.Getenv("NBU_SITE"),
-		rateapi.NewNBUProvider(os.Getenv("NBU_URL")), logg)
+		rateapi.NewNBUProvider(os.Getenv("NBU_URL")), l)
 
 	BaseChain := chain.NewNode(CoinBaseProvider)
 	SecondChain := chain.NewNode(PrivatBankProvider)

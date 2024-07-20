@@ -41,7 +41,7 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 	if er := m.Customer.StartTransaction(email, offset); er != nil {
 		if errors.Is(er, customerrepo.ErrorDuplicateCustomer) {
-			m.Logger.Errorf("%s: %s", email, "Already exists")
+			m.Logger.Error("Already exists", zap.String("email", email), zap.Error(er))
 			http.Error(w, "Already exists", http.StatusConflict)
 			return
 		}
@@ -61,11 +61,11 @@ func (m *Repository) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 
 	if err = m.Subscriber.RemoveSubscriber(email); err != nil {
 		if errors.Is(err, subscriberrepo.ErrorNonExistentSubscription) {
-			m.Logger.Errorf("%s: %s", email, "Not found")
+			m.Logger.Error("Not found", zap.String("email", email), zap.Error(err))
 			http.Error(w, "Not found", http.StatusNotFound)
 			return
 		}
-		m.Logger.Errorf("removing subscriber: %w", err)
+		m.Logger.Error("removing subscriber", zap.Error(err))
 		http.Error(w, "Failed to unsubscribe", http.StatusInternalServerError)
 		return
 	}
