@@ -3,6 +3,7 @@ package emailstreamer
 import (
 	"context"
 	"encoding/binary"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"time"
 
@@ -78,10 +79,14 @@ func (es *EmailStreamer) processEvents() {
 	}
 
 	for _, msg := range events {
+		ctx := context.Background()
+		traceID := uuid.New()
+		ctx = context.WithValue(ctx, logger.TraceIDKey, traceID.String())
+
 		key := make([]byte, 8)
 		binary.BigEndian.PutUint64(key, uint64(msg.ID))
-		if err = es.publishEvent(key, []byte(msg.Data)); err != nil {
-			es.Logger.Error("Failed to write message to broker", zap.Error(err), zap.String("key", string(key)))
+		if err = es.publishEvent(ctx, key, []byte(msg.Data)); err != nil {
+			es.Logger.WithContext(ctx).Error("Failed to write message to broker", zap.Error(err), zap.String("key", string(key)))
 			continue
 		}
 		streamMsg := Streamer{
@@ -90,7 +95,7 @@ func (es *EmailStreamer) processEvents() {
 			LastOffset: msg.ID,
 		}
 		if err = es.StreamerStorage.ChangeOffset(streamMsg); err != nil {
-			es.Logger.Error("Failed to add message to stream", zap.Error(err), zap.Any("message", msg))
+			es.Logger.WithContext(ctx).Error("Failed to add message to stream", zap.Error(err), zap.Any("message", msg))
 			continue
 		}
 
@@ -101,16 +106,16 @@ func (es *EmailStreamer) processEvents() {
 	time.Sleep(PeriodTime)
 }
 
-func (es *EmailStreamer) publishEvent(key, message []byte) error {
+func (es *EmailStreamer) publishEvent(ctx context.Context, key, message []byte) error {
 	conn, err := kafka.DialLeader(context.Background(), "tcp", es.KafkaProducer.Addr.String(), es.KafkaProducer.Topic, 0)
 	if err != nil {
-		es.Logger.Error("Failed to dial leader", zap.Error(err))
+		es.Logger.WithContext(ctx).Error("Failed to dial leader", zap.Error(err))
 		return err
 	}
 	defer func(conn *kafka.Conn) {
 		err = conn.Close()
 		if err != nil {
-			es.Logger.Error("Failed to close connection with kafka", zap.Error(err))
+			es.Logger.WithContext(ctx).Error("Failed to close connection with kafka", zap.Error(err))
 		}
 	}(conn)
 
@@ -118,10 +123,16 @@ func (es *EmailStreamer) publishEvent(key, message []byte) error {
 		kafka.Message{
 			Key:   key,
 			Value: message,
+			Headers: []kafka.Header{
+				{
+					Key:   "trace_id",
+					Value: []byte(ctx.Value(logger.TraceIDKey).(string)),
+				},
+			},
 		},
 	)
 	if err != nil {
-		es.Logger.Error("Failed to write to leader", zap.Error(err))
+		es.Logger.WithContext(ctx).Error("Failed to write to leader", zap.Error(err))
 		return err
 	}
 	return nil

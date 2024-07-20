@@ -64,9 +64,20 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 			s.Logger.Warn("reading message", zap.Error(err))
 			continue
 		}
+
+		var traceID string
+		for _, h := range m.Headers {
+			if h.Key == "trace_id" {
+				traceID = string(h.Value)
+				break
+			}
+		}
+
+		ctx = context.WithValue(ctx, logger.TraceIDKey, traceID)
+
 		data, err := deserializeData(m.Value)
 		if err != nil {
-			s.Logger.Warn("deserializing message", zap.Error(err))
+			s.Logger.WithContext(ctx).Warn("deserializing message", zap.Error(err))
 			continue
 		}
 		e := email.NewEmail()
@@ -75,23 +86,23 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 		e.Subject = "Currency rate notification: USD to UAH"
 		e.Text = []byte(data.Message)
 
-		s.Logger.Info("Sending message to", zap.String("email", data.Recipient))
+		s.Logger.WithContext(ctx).Info("Sending message to", zap.String("email", data.Recipient))
 
 		isProcessed, err := s.EventStorage.CheckEventProcessed(int(binary.BigEndian.Uint64(m.Key)))
 		if err != nil {
-			s.Logger.Warn("checking if event is processed", zap.Error(err))
+			s.Logger.WithContext(ctx).Warn("checking if event is processed", zap.Error(err))
 			continue
 		}
 		if isProcessed {
-			s.Logger.Info("Event is already processed")
+			s.Logger.WithContext(ctx).Info("Event is already processed")
 			if err = s.KafkaReader.CommitMessages(ctx, m); err != nil {
-				s.Logger.Warn("committing message", zap.Error(err))
+				s.Logger.WithContext(ctx).Warn("committing message", zap.Error(err))
 				continue
 			}
 		}
 
 		if err = s.Send(e); err != nil {
-			s.Logger.Warn("sending email", zap.Error(err))
+			s.Logger.WithContext(ctx).Warn("sending email", zap.Error(err))
 			continue
 		}
 		event := EventProcessed{
@@ -99,11 +110,11 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 			Data: string(m.Value),
 		}
 		if err = s.EventStorage.ConsumeEvent(event); err != nil {
-			s.Logger.Warn("consuming event", zap.Error(err))
+			s.Logger.WithContext(ctx).Warn("consuming event", zap.Error(err))
 		}
 
 		if err = s.KafkaReader.CommitMessages(ctx, m); err != nil {
-			s.Logger.Warn("committing message", zap.Error(err))
+			s.Logger.WithContext(ctx).Warn("committing message", zap.Error(err))
 		}
 	}
 }
