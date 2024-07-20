@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -9,6 +10,15 @@ type Logger struct {
 	logger *zap.Logger
 	sugar  *zap.SugaredLogger
 }
+
+type ContextKey string
+
+var (
+	contextKeys = map[ContextKey]string{
+		TraceIDKey: "trace_id",
+	}
+	TraceIDKey = ContextKey("trace_id")
+)
 
 // NewLogger creates a new Logger instance
 func NewLogger(mode string) (*Logger, error) {
@@ -67,4 +77,23 @@ func (l *Logger) Error(msg string, fields ...zap.Field) {
 // Fatal logs a message at Fatal level
 func (l *Logger) Fatal(msg string, fields ...zap.Field) {
 	l.logger.Fatal(msg, fields...)
+}
+
+func (l *Logger) WithContext(ctx context.Context) *Logger {
+	if ctx == nil {
+		return l
+	}
+
+	logger := l.logger
+	var fields []zap.Field
+
+	for key, value := range contextKeys {
+		if val, ok := ctx.Value(key).(string); ok {
+			fields = append(fields, zap.String(value, val))
+		}
+	}
+
+	return &Logger{
+		logger: logger.With(fields...),
+	}
 }

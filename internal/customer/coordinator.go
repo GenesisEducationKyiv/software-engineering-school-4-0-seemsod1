@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"strconv"
 
 	customersmodels "github.com/seemsod1/api-project/internal/customer/models"
@@ -35,17 +36,23 @@ func NewSagaCoordinator(customer Database, producer *kafka.Writer, consumer *kaf
 }
 
 func (c *SagaCoordinator) StartTransaction(email string, timezone int) error {
+	ctx := context.Background()
+	traceID := uuid.New()
+	ctx = context.WithValue(ctx, logger.TraceIDKey, traceID.String())
+
 	customer := customersmodels.Customer{
 		Email:    email,
 		Timezone: timezone,
 	}
+
+	c.Logger.WithContext(ctx).Info("creating customer")
 
 	id, err := c.CustomerRepo.CreateCustomer(customer)
 	if err != nil {
 		if errors.Is(err, customerrepo.ErrorDuplicateCustomer) {
 			return customerrepo.ErrorDuplicateCustomer
 		}
-		c.Logger.Error("failed to create customer")
+		c.Logger.WithContext(ctx).Error("failed to create customer")
 		return fmt.Errorf("creating customer: %w", err)
 	}
 	data := customersmodels.CommandData{
@@ -59,7 +66,7 @@ func (c *SagaCoordinator) StartTransaction(email string, timezone int) error {
 	serializedData, er := customersmodels.SerializeCommandData(data)
 	if er != nil {
 		_ = c.CustomerRepo.DeleteCustomerByID(id)
-		c.Logger.Error("failed to serialize data")
+		c.Logger.WithContext(ctx).Error("failed to serialize data")
 		return fmt.Errorf("serializing data: %w", er)
 	}
 
@@ -68,12 +75,22 @@ func (c *SagaCoordinator) StartTransaction(email string, timezone int) error {
 	msg := kafka.Message{
 		Key:   []byte(serializedID),
 		Value: []byte(serializedData),
+		Headers: []kafka.Header{
+			{
+				Key:   "trace_id",
+				Value: []byte(traceID.String()),
+			},
+		},
 	}
-	if err = c.Producer.WriteMessages(context.Background(), msg); err != nil {
+
+	c.Logger.WithContext(ctx).Info("sending message to broker")
+	if err = c.Producer.WriteMessages(ctx, msg); err != nil {
 		_ = c.CustomerRepo.DeleteCustomerByID(id)
-		c.Logger.Error("failed to send message")
+		c.Logger.WithContext(ctx).Error("failed to send message")
 		return fmt.Errorf("sending message: %w", err)
 	}
+
+	c.Logger.WithContext(ctx).Info("message sent")
 	return nil
 }
 

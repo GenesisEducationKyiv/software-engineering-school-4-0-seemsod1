@@ -14,7 +14,7 @@ func routes() http.Handler {
 	mux := chi.NewRouter()
 
 	mux.Use(middleware.RequestID)
-	mux.Use(middleware.Logger)
+	//mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	mux.Use(EnableCORS)
 
