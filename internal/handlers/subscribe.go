@@ -25,7 +25,7 @@ type Subscriber interface {
 }
 
 // Subscribe subscribes a user to the newsletter
-func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
+func (m *Handlers) Subscribe(w http.ResponseWriter, r *http.Request) {
 	email, err := parseEmail(r)
 	if err != nil {
 		m.Logger.Error("Invalid email", zap.Error(err))
@@ -51,7 +51,7 @@ func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 // Unsubscribe unsubscribes a user from the newsletter
-func (m *Repository) Unsubscribe(w http.ResponseWriter, r *http.Request) {
+func (m *Handlers) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 	email, err := parseEmail(r)
 	if err != nil {
 		m.Logger.Error("Invalid email", zap.Error(err))

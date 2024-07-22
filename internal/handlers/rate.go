@@ -14,7 +14,7 @@ type RateService interface {
 }
 
 // Rate returns the current USD to UAH rate
-func (m *Repository) Rate(w http.ResponseWriter, r *http.Request) {
+func (m *Handlers) Rate(w http.ResponseWriter, r *http.Request) {
 	price, err := m.RateService.GetRate(r.Context(), "USD", "UAH")
 	if err != nil {
 		m.Logger.Error("Getting rate", zap.Error(err))

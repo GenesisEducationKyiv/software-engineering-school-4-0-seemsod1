@@ -25,6 +25,7 @@ type services struct {
 	Driver         *driver.GORMDriver
 	Customer       *customer.Service
 	SubscriberRepo *subscriberrepo.SubscriberDBRepo
+	Handlers       *handlers.Handlers
 }
 
 // setup sets up the application
@@ -70,13 +71,13 @@ func setup(_ *config.AppConfig, l *logger.Logger) (*services, error) {
 
 	cust := customer.NewService(custRepo, coordinator)
 
-	repo := handlers.NewRepo(cust.SagaCoordinator, subsRepo, fetcher, l)
-	handlers.NewHandlers(repo)
+	appHandlers := handlers.NewHandlers(cust.SagaCoordinator, subsRepo, fetcher, l)
 
 	return &services{
 		Driver:         db,
 		Customer:       cust,
 		SubscriberRepo: subsRepo,
+		Handlers:       appHandlers,
 	}, nil
 }
 

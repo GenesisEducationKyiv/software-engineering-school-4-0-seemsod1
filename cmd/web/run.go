@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/seemsod1/api-project/internal/handlers/routes"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
@@ -25,7 +26,10 @@ import (
 	"github.com/seemsod1/api-project/pkg/logger"
 )
 
-const portNumber = ":8080"
+const (
+	apiPortNumber     = ":8080"
+	metricsPortNumber = ":8081"
+)
 
 type (
 	consumer interface {
@@ -112,19 +116,25 @@ func run() error {
 
 	go eventConsumer(ctx, serv.Customer.SagaCoordinator, applogg)
 
-	srv := &http.Server{
-		Addr:        portNumber,
-		Handler:     routes(),
+	apiSrv := &http.Server{
+		Addr:        apiPortNumber,
+		Handler:     routes.API(serv.Handlers),
 		ReadTimeout: 30 * time.Second,
 	}
 
-	handleShutdown(srv, cancel, applogg)
+	metricsSrv := &http.Server{
+		Addr:        metricsPortNumber,
+		Handler:     routes.Metrics(),
+		ReadTimeout: 30 * time.Second,
+	}
+
+	handleShutdown(apiSrv, metricsSrv, cancel, applogg)
 
 	return nil
 }
 
 // handleShutdown handles a graceful shutdown of the application.
-func handleShutdown(srv *http.Server, cancelFunc context.CancelFunc, i *logger.Logger) {
+func handleShutdown(apiSrv *http.Server, metricsSrv *http.Server, cancelFunc context.CancelFunc, l *logger.Logger) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
@@ -133,30 +143,45 @@ func handleShutdown(srv *http.Server, cancelFunc context.CancelFunc, i *logger.L
 		cancelFunc()
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		i.Info("Shutting down server...")
-		if err := srv.Shutdown(ctx); err != nil {
-			i.Error("HTTP server shutdown failed", zap.Error(err))
+		l.Info("Shutting down servers...")
+
+		if err := apiSrv.Shutdown(ctx); err != nil {
+			l.Error("API server shutdown failed", zap.Error(err))
 		}
-		i.Info("Server has been stopped")
+
+		if err := metricsSrv.Shutdown(ctx); err != nil {
+			l.Error("Metrics server shutdown failed", zap.Error(err))
+		}
+
+		l.Info("Servers has been stopped")
 	}()
 
-	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		i.Fatal("HTTP server ListenAndServe", zap.Error(err))
+	l.Info("Starting servers...")
+	l.Info("API server is running on", zap.String("port", apiSrv.Addr))
+	go func() {
+		if err := apiSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			l.Fatal("failed to shutdown API server", zap.Error(err))
+		}
+	}()
+
+	l.Info("Metrics server is running on", zap.String("port", metricsSrv.Addr))
+	if err := metricsSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		l.Fatal("Metrics server ListenAndServe", zap.Error(err))
 	}
 }
 
 // eventProducer runs an event dispatcher.
-func eventProducer(ctx context.Context, p producer, i *logger.Logger) {
+func eventProducer(ctx context.Context, p producer, l *logger.Logger) {
 	p.Process(ctx)
 
 	<-ctx.Done()
-	i.Info("Shutting down event producer...")
+	l.Info("Shutting down event producer...")
 }
 
 // eventProducer runs an event dispatcher.
-func eventConsumer(ctx context.Context, c consumer, i *logger.Logger) {
+func eventConsumer(ctx context.Context, c consumer, l *logger.Logger) {
 	c.StartReceivingMessages(ctx)
 
 	<-ctx.Done()
-	i.Info("Shutting down event consumer...")
+	l.Info("Shutting down event consumer...")
 }

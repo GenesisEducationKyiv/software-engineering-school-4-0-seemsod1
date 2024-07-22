@@ -10,4 +10,4 @@ scrape_configs:
       - targets: ['victoriametrics:8428']
   - job_name: 'rate-app'
     static_configs:
-      - targets: ['web:8080']
+      - targets: ['web:8081']
