@@ -5,8 +5,9 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"net/smtp"
+
+	"go.uber.org/zap"
 
 	"github.com/seemsod1/api-project/pkg/logger"
 

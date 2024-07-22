@@ -3,9 +3,10 @@ package emailstreamer
 import (
 	"context"
 	"encoding/binary"
+	"time"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"time"
 
 	"github.com/seemsod1/api-project/pkg/notifier"
 

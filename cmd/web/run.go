@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/seemsod1/api-project/internal/handlers/routes"
-	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/seemsod1/api-project/internal/handlers/routes"
+	"go.uber.org/zap"
 
 	"github.com/seemsod1/api-project/internal/subscriber"
 
@@ -134,7 +135,7 @@ func run() error {
 }
 
 // handleShutdown handles a graceful shutdown of the application.
-func handleShutdown(apiSrv *http.Server, metricsSrv *http.Server, cancelFunc context.CancelFunc, l *logger.Logger) {
+func handleShutdown(apiSrv, metricsSrv *http.Server, cancelFunc context.CancelFunc, l *logger.Logger) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 

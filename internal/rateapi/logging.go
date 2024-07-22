@@ -2,6 +2,7 @@ package rateapi
 
 import (
 	"context"
+
 	"go.uber.org/zap"
 
 	"github.com/seemsod1/api-project/pkg/logger"

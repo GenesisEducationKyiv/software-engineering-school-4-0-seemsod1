@@ -16,7 +16,7 @@ import (
 func TestRate_ProviderError(t *testing.T) {
 	mockProvider := newMockProvider()
 	logg, _ := logger.NewLogger("test")
-	repo := handlers.Repository{RateService: mockProvider, Logger: logg}
+	repo := handlers.NewHandlers(nil, nil, mockProvider, logg)
 
 	handler := http.HandlerFunc(repo.Rate)
 
@@ -35,7 +35,7 @@ func TestRate_Success(t *testing.T) {
 	provider := newMockProvider()
 	provider.On("GetRate", context.Background(), "USD", "UAH").Return(27.6, nil)
 
-	repo := handlers.Repository{RateService: provider}
+	repo := handlers.NewHandlers(nil, nil, provider, nil)
 
 	handler := http.HandlerFunc(repo.Rate)
 

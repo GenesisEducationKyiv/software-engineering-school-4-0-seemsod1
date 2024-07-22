@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"strconv"
+
+	"github.com/google/uuid"
 
 	customersmodels "github.com/seemsod1/api-project/internal/customer/models"
 	customerrepo "github.com/seemsod1/api-project/internal/customer/repository"

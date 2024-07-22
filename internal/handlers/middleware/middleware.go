@@ -2,8 +2,9 @@ package middlewarepkg
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/metrics"
 	"net/http"
+
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // EnableCORS enables CORS

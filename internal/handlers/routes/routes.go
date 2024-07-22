@@ -1,8 +1,9 @@
 package routes
 
 import (
-	middlewarepkg "github.com/seemsod1/api-project/internal/handlers/middleware"
 	"net/http"
+
+	middlewarepkg "github.com/seemsod1/api-project/internal/handlers/middleware"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"

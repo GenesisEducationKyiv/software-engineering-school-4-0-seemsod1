@@ -1,8 +1,9 @@
 package routes_test
 
 import (
-	"github.com/seemsod1/api-project/internal/handlers/routes"
 	"testing"
+
+	"github.com/seemsod1/api-project/internal/handlers/routes"
 
 	"github.com/go-chi/chi/v5"
 )
