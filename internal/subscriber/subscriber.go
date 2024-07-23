@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	subscribermodels "github.com/seemsod1/api-project/internal/subscriber/models"
 	subscriberrepo "github.com/seemsod1/api-project/internal/subscriber/repository"
 	"github.com/seemsod1/api-project/pkg/logger"
 	"github.com/segmentio/kafka-go"
+	"go.uber.org/zap"
 )
+
+const serviceName = "subscriber"
 
 type Service struct {
 	Database Database
@@ -48,12 +50,16 @@ func (s *Service) StartReceivingMessages(ctx context.Context) {
 		}
 
 		ctx = context.WithValue(ctx, logger.TraceIDKey, traceID)
+		ctx = context.WithValue(ctx, logger.ServiceNameKey, serviceName)
 
 		if err != nil {
 			s.Logger.WithContext(ctx).Error("failed to read message")
 			continue
 		}
 
+		s.Logger.WithContext(ctx).Info("got message")
+
+		s.Logger.WithContext(ctx).Debug("processing message")
 		if err = s.processMessage(ctx, m); err != nil {
 			s.Logger.WithContext(ctx).Error("failed to process message")
 		}
@@ -69,6 +75,9 @@ func (s *Service) processMessage(ctx context.Context, m kafka.Message) error {
 
 	responseMessage, err := s.handleCommand(ctx, data)
 	if err != nil {
+		s.Logger.WithContext(ctx).Error("failed to handle command")
+
+		s.Logger.WithContext(ctx).Debug("removing subscriber")
 		if err = s.Database.RemoveSubscriber(data.Payload.Email); err != nil {
 			s.Logger.WithContext(ctx).Error("failed to remove subscriber")
 		}
@@ -87,16 +96,22 @@ func (s *Service) handleCommand(ctx context.Context, data subscribermodels.Comma
 	var responseMessage string
 	var err error
 
+	s.Logger.WithContext(ctx).Debug("handling command", zap.String("command", data.Command))
+
 	switch data.Command {
 	case "subscribe_by_email":
-		err = s.subscribeByEmail(ctx, data.Payload.Email, data.Payload.Timezone)
+		s.Logger.WithContext(ctx).Info("subscribing by email")
+		err = s.subscribeByEmail(data.Payload.Email, data.Payload.Timezone)
 		if err != nil {
 			if errors.Is(err, subscriberrepo.ErrorDuplicateSubscription) {
+				s.Logger.WithContext(ctx).Debug("subscriber already exists")
 				responseMessage = "already_exists"
 			} else {
+				s.Logger.WithContext(ctx).Error("failed to subscribe")
 				responseMessage = "failed"
 			}
 		} else {
+			s.Logger.WithContext(ctx).Info("subscribed successfully")
 			responseMessage = "success"
 		}
 	default:
@@ -114,7 +129,9 @@ func (s *Service) sendReply(ctx context.Context, m kafka.Message, repl subscribe
 		return err
 	}
 
-	if err = s.sendResponse(m.Key, []byte(serializedData)); err != nil {
+	traceID := ctx.Value(logger.TraceIDKey).(string)
+
+	if err = s.sendResponse(m.Key, []byte(serializedData), traceID); err != nil {
 		s.Logger.WithContext(ctx).Error("failed to send response")
 		return err
 	}
@@ -127,18 +144,25 @@ func (s *Service) sendReply(ctx context.Context, m kafka.Message, repl subscribe
 	return nil
 }
 
-func (s *Service) subscribeByEmail(ctx context.Context, email string, timezone int) error {
-	s.Logger.WithContext(ctx).Info("subscribing by email")
+func (s *Service) subscribeByEmail(email string, timezone int) error {
 	return s.Database.AddSubscriber(subscribermodels.Subscriber{
 		Email:    email,
 		Timezone: timezone,
 	})
 }
 
-func (s *Service) sendResponse(key, value []byte) error {
+func (s *Service) sendResponse(key, value []byte, traceID string) error {
+	s.Logger.Info("sending response")
+
 	msg := kafka.Message{
 		Key:   key,
 		Value: value,
+		Headers: []kafka.Header{
+			{
+				Key:   "trace_id",
+				Value: []byte(traceID),
+			},
+		},
 	}
 	return s.Producer.WriteMessages(context.Background(), msg)
 }

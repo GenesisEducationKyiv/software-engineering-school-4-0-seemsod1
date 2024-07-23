@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/VictoriaMetrics/metrics"
 	"net/smtp"
 
 	"go.uber.org/zap"
@@ -16,17 +17,25 @@ import (
 	"github.com/jordan-wright/email"
 )
 
-const numWorkers = 4
+const (
+	numWorkers  = 4
+	serviceName = "message_sender"
+)
+
+var (
+	EmailSentSuccessfullyTotal = metrics.NewCounter("email_sent_total")
+	EmailSentWithErrorsTotal   = metrics.NewCounter("email_sent_with_errors_total")
+)
 
 type SMTPEmailSender struct {
 	From         string
 	Pool         *email.Pool
-	EventStorage EventStorage
+	EventStorage eventStorage
 	KafkaReader  *kafka.Reader
 	Logger       *logger.Logger
 }
 
-type EventStorage interface {
+type eventStorage interface {
 	ConsumeEvent(event EventProcessed) error
 	CheckEventProcessed(id int) (bool, error)
 }
@@ -34,7 +43,7 @@ type EventStorage interface {
 func NewSMTPEmailSender(
 	cfg EmailSenderConfig,
 	kafkaReader *kafka.Reader,
-	storage EventStorage,
+	storage eventStorage,
 	logg *logger.Logger,
 ) (*SMTPEmailSender, error) {
 	p, err := email.NewPool(
@@ -61,10 +70,6 @@ func (s *SMTPEmailSender) Send(e *email.Email) error {
 func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 	for {
 		m, err := s.KafkaReader.FetchMessage(ctx)
-		if err != nil {
-			s.Logger.Warn("reading message", zap.Error(err))
-			continue
-		}
 
 		var traceID string
 		for _, h := range m.Headers {
@@ -75,10 +80,16 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 		}
 
 		ctx = context.WithValue(ctx, logger.TraceIDKey, traceID)
+		ctx = context.WithValue(ctx, logger.ServiceNameKey, serviceName)
+
+		if err != nil {
+			s.Logger.WithContext(ctx).Error("reading message", zap.Error(err))
+			continue
+		}
 
 		data, err := deserializeData(m.Value)
 		if err != nil {
-			s.Logger.WithContext(ctx).Warn("deserializing message", zap.Error(err))
+			s.Logger.WithContext(ctx).Error("deserializing message", zap.Error(err))
 			continue
 		}
 		e := email.NewEmail()
@@ -91,31 +102,35 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 
 		isProcessed, err := s.EventStorage.CheckEventProcessed(int(binary.BigEndian.Uint64(m.Key)))
 		if err != nil {
-			s.Logger.WithContext(ctx).Warn("checking if event is processed", zap.Error(err))
+			s.Logger.WithContext(ctx).Error("checking if event is processed", zap.Error(err))
 			continue
 		}
 		if isProcessed {
-			s.Logger.WithContext(ctx).Info("Event is already processed")
+			s.Logger.WithContext(ctx).Warn("Event is already processed")
 			if err = s.KafkaReader.CommitMessages(ctx, m); err != nil {
-				s.Logger.WithContext(ctx).Warn("committing message", zap.Error(err))
+				s.Logger.WithContext(ctx).Error("committing message", zap.Error(err))
 				continue
 			}
 		}
 
 		if err = s.Send(e); err != nil {
 			s.Logger.WithContext(ctx).Warn("sending email", zap.Error(err))
+			EmailSentWithErrorsTotal.Inc()
 			continue
 		}
+
+		EmailSentSuccessfullyTotal.Inc()
+
 		event := EventProcessed{
 			ID:   uint(binary.BigEndian.Uint64(m.Key)),
 			Data: string(m.Value),
 		}
 		if err = s.EventStorage.ConsumeEvent(event); err != nil {
-			s.Logger.WithContext(ctx).Warn("consuming event", zap.Error(err))
+			s.Logger.WithContext(ctx).Error("consuming event", zap.Error(err))
 		}
 
 		if err = s.KafkaReader.CommitMessages(ctx, m); err != nil {
-			s.Logger.WithContext(ctx).Warn("committing message", zap.Error(err))
+			s.Logger.WithContext(ctx).Error("committing message", zap.Error(err))
 		}
 	}
 }

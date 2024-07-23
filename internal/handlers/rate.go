@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/render"
 )
 
-type RateService interface {
+type rateService interface {
 	GetRate(ctx context.Context, base, target string) (float64, error)
 }
 

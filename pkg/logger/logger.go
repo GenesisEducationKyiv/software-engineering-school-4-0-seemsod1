@@ -16,9 +16,11 @@ type ContextKey string
 
 var (
 	contextKeys = map[ContextKey]string{
-		TraceIDKey: "trace_id",
+		TraceIDKey:     "trace_id",
+		ServiceNameKey: "service_name",
 	}
-	TraceIDKey = ContextKey("trace_id")
+	TraceIDKey     = ContextKey("trace_id")
+	ServiceNameKey = ContextKey("service_name")
 )
 
 // NewLogger creates a new Logger instance

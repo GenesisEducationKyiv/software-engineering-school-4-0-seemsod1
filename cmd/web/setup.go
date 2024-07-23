@@ -30,7 +30,7 @@ type services struct {
 
 // setup sets up the application
 func setup(_ *config.AppConfig, l *logger.Logger) (*services, error) {
-	dr := driver.NewGORMDriver()
+	dr := driver.NewGORMDriver(l)
 
 	l.Info("Connecting to database...")
 	db, err := dr.ConnectSQL()
@@ -51,6 +51,7 @@ func setup(_ *config.AppConfig, l *logger.Logger) (*services, error) {
 		return nil, fmt.Errorf("creating streamer repository: %w", err)
 	}
 
+	l.Info("Setting up scheduler...")
 	sch := scheduler.NewGoCronScheduler()
 
 	l.Info("Starting mail notifier...")

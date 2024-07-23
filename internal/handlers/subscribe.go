@@ -16,11 +16,11 @@ import (
 	"github.com/go-chi/render"
 )
 
-type Customer interface {
+type customer interface {
 	StartTransaction(email string, timezone int) error
 }
 
-type Subscriber interface {
+type subscriber interface {
 	RemoveSubscriber(email string) error
 }
 

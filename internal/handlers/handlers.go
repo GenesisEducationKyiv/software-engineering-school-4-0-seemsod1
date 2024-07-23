@@ -6,14 +6,14 @@ import (
 
 // Handlers is a struct that contains all the services
 type Handlers struct {
-	Customer    Customer
-	Subscriber  Subscriber
-	RateService RateService
+	Customer    customer
+	Subscriber  subscriber
+	RateService rateService
 	Logger      *logger.Logger
 }
 
 // NewHandlers creates handlers
-func NewHandlers(c Customer, subs Subscriber, rateService RateService, log *logger.Logger) *Handlers {
+func NewHandlers(c customer, subs subscriber, rateService rateService, log *logger.Logger) *Handlers {
 	return &Handlers{
 		Customer:    c,
 		Subscriber:  subs,

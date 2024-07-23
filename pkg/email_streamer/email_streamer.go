@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	RecoverTime = 1 * time.Minute
-	PeriodTime  = 1 * time.Minute
-	BatchSize   = 100
+	recoverTime = 1 * time.Minute
+	periodTime  = 1 * time.Minute
+	batchSize   = 100
+	serviceName = "email_streamer"
 )
 
 type EmailStreamer struct {
@@ -66,24 +67,28 @@ func (es *EmailStreamer) Process(ctx context.Context) {
 }
 
 func (es *EmailStreamer) processEvents() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, logger.ServiceNameKey, serviceName)
+
+	es.Logger.Debug("Processing outbox messages")
 	off, err := es.StreamerStorage.GetOffset(es.KafkaProducer.Topic, 1)
 	if err != nil {
-		es.Logger.Error("Error retrieving last offset", zap.Error(err))
-		time.Sleep(RecoverTime)
+		es.Logger.WithContext(ctx).Error("Error retrieving last offset", zap.Error(err))
+		time.Sleep(recoverTime)
 		return
 	}
-	events, err := es.EventStorage.GetEvents(off, BatchSize)
+	events, err := es.EventStorage.GetEvents(off, batchSize)
 	if err != nil {
-		es.Logger.Error("Error retrieving outbox messages", zap.Error(err))
-		time.Sleep(RecoverTime)
+		es.Logger.WithContext(ctx).Error("Error retrieving outbox messages", zap.Error(err))
+		time.Sleep(recoverTime)
 		return
 	}
 
 	for _, msg := range events {
-		ctx := context.Background()
 		traceID := uuid.New()
 		ctx = context.WithValue(ctx, logger.TraceIDKey, traceID.String())
 
+		es.Logger.WithContext(ctx).Debug("Sending message to broker")
 		key := make([]byte, 8)
 		binary.BigEndian.PutUint64(key, uint64(msg.ID))
 		if err = es.publishEvent(ctx, key, []byte(msg.Data)); err != nil {
@@ -102,9 +107,9 @@ func (es *EmailStreamer) processEvents() {
 
 	}
 
-	es.Logger.Info("All outbox messages processed")
+	es.Logger.WithContext(ctx).Info("All outbox messages processed")
 
-	time.Sleep(PeriodTime)
+	time.Sleep(periodTime)
 }
 
 func (es *EmailStreamer) publishEvent(ctx context.Context, key, message []byte) error {
