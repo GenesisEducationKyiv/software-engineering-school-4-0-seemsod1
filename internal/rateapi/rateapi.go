@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/VictoriaMetrics/metrics"
 	"io"
 	"log"
 	"net/http"
 	"regexp"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (

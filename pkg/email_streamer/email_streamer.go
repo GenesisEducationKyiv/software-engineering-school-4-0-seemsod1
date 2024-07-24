@@ -3,8 +3,9 @@ package emailstreamer
 import (
 	"context"
 	"encoding/binary"
-	"github.com/VictoriaMetrics/metrics"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"

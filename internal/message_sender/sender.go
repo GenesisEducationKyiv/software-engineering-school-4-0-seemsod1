@@ -5,9 +5,10 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/VictoriaMetrics/metrics"
 	"net/smtp"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"go.uber.org/zap"
 

@@ -93,14 +93,14 @@ func (et *EmailNotifier) Start() error {
 	return nil
 }
 
-func (et *EmailNotifier) SendRate(ctx context.Context, recipients []string) {
+func (et *EmailNotifier) SendRate(cntx context.Context, recipients []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	et.Logger.WithContext(ctx).Debug("getting rate from providers")
+	et.Logger.WithContext(cntx).Debug("getting rate from providers")
 	rate, err := et.RateService.GetRate(ctx, "USD", "UAH")
 	if err != nil {
-		et.Logger.WithContext(ctx).Error("Error getting rate", zap.Error(err))
+		et.Logger.WithContext(cntx).Error("Error getting rate", zap.Error(err))
 		return
 	}
 	msgText := fmt.Sprintf("Current rate: %.2f", rate)
@@ -113,7 +113,7 @@ func (et *EmailNotifier) SendRate(ctx context.Context, recipients []string) {
 		}
 		serializedData, er := serializeData(data)
 		if er != nil {
-			et.Logger.WithContext(ctx).Error("Error serializing data", zap.Error(er))
+			et.Logger.WithContext(cntx).Error("Error serializing data", zap.Error(er))
 			return
 		}
 
@@ -124,11 +124,11 @@ func (et *EmailNotifier) SendRate(ctx context.Context, recipients []string) {
 	}
 
 	if err = et.Event.AddToEvents(messages); err != nil {
-		et.Logger.WithContext(ctx).Error("Error adding to events list", zap.Error(err))
+		et.Logger.WithContext(cntx).Error("Error adding to events list", zap.Error(err))
 		return
 	}
 
-	et.Logger.WithContext(ctx).Info("All messages saved to outbox")
+	et.Logger.WithContext(cntx).Info("All messages saved to outbox")
 }
 
 // serializeData converts a Message struct to a JSON string, excluding ID, CreatedAt and SentAt

@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/VictoriaMetrics/metrics"
 	"strconv"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/google/uuid"
 
@@ -17,9 +18,7 @@ import (
 
 const serviceName = "customer"
 
-var (
-	NewCustomersTotal = metrics.NewCounter("new_customers_total")
-)
+var NewCustomersTotal = metrics.NewCounter("new_customers_total")
 
 type SagaCoordinator struct {
 	CustomerRepo Database

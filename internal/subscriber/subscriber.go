@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/VictoriaMetrics/metrics"
 	subscribermodels "github.com/seemsod1/api-project/internal/subscriber/models"
 	subscriberrepo "github.com/seemsod1/api-project/internal/subscriber/repository"
@@ -15,9 +16,7 @@ import (
 
 const serviceName = "subscriber"
 
-var (
-	newSubscribersTotal = metrics.NewCounter("new_subscribers_total")
-)
+var newSubscribersTotal = metrics.NewCounter("new_subscribers_total")
 
 type Service struct {
 	Database Database
@@ -135,8 +134,11 @@ func (s *Service) sendReply(ctx context.Context, m kafka.Message, repl subscribe
 		return err
 	}
 
-	traceID := ctx.Value(logger.TraceIDKey).(string)
-
+	traceID, ok := ctx.Value(logger.TraceIDKey).(string)
+	if !ok {
+		s.Logger.WithContext(ctx).Error("failed to get traceID")
+		return errors.New("traceID not found")
+	}
 	if err = s.sendResponse(m.Key, []byte(serializedData), traceID); err != nil {
 		s.Logger.WithContext(ctx).Error("failed to send response")
 		return err

@@ -3,8 +3,9 @@ package handlers
 import (
 	"errors"
 	"fmt"
-	"github.com/VictoriaMetrics/metrics"
 	"net/http"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	customerrepo "github.com/seemsod1/api-project/internal/customer/repository"
 	subscriberrepo "github.com/seemsod1/api-project/internal/subscriber/repository"

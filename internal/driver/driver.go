@@ -2,10 +2,11 @@ package driver
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/kelseyhightower/envconfig"
 	"github.com/seemsod1/api-project/pkg/logger"
 	"go.uber.org/zap"
-	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
