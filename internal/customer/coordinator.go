@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/google/uuid"
 
 	customersmodels "github.com/seemsod1/api-project/internal/customer/models"
@@ -17,8 +15,6 @@ import (
 )
 
 const serviceName = "customer"
-
-var NewCustomersTotal = metrics.NewCounter("new_customers_total")
 
 type SagaCoordinator struct {
 	CustomerRepo Database
@@ -149,7 +145,6 @@ func (c *SagaCoordinator) StartReceivingMessages(ctx context.Context) {
 				}
 
 				c.Logger.WithContext(ctx).Info("customer subscribed")
-				NewCustomersTotal.Inc()
 			default:
 				c.Logger.WithContext(ctx).Error("unknown reply")
 			}

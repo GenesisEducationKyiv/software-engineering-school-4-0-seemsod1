@@ -166,15 +166,14 @@ P.S. All thresholds are arbitrary and should be adjusted based on the service's 
 
 - We can also calculate:
   - Rate of new subscribers: `rate(new_subscribers_total[5m])`
-  - Rate of new customers: `rate(new_customers_total[5m])`
-  - Rate of unsubscribed users: `rate(unsubscribe_total[5m])`
+  - Rate of unsubscribed users: `rate(unsubscribe_success_total[5m])`
   - Rate of conflicts when subscribing: `rate(subscribe_status_conflict_total[5m])`
   
 **Alerts:**
 
 - **High Unsubscribe Rate**: Trigger an alert if the rate of unsubscribed users exceeds a certain threshold.
   ```promql
-  rate(unsubscribe_total[5m]) / rate(new_subscribers_total[5m]) > 0.1
+  rate(unsubscribe_success_total[5m]) / rate(new_subscribers_total[5m]) > 0.1
   ```
   
 - **High Conflict Rate**: Trigger an alert if the rate of conflicts when subscribing exceeds a certain threshold in a given time window.
@@ -183,7 +182,7 @@ P.S. All thresholds are arbitrary and should be adjusted based on the service's 
     ```  
 - **High New Customer Rate**: Trigger an alert if the rate of new customers exceeds a certain threshold.
   ```promql
-    rate(new_customers_total[1m]) > 500
+    rate(new_subscribers_total[1m]) > 500
     ```
 - **Small Number of New Subscribers**: Trigger an alert if the rate of new subscribers is below a certain threshold.
   ```promql

@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	unsubscribeTotal    = metrics.NewCounter("unsubscribe_total")
-	statusConflictTotal = metrics.NewCounter("subscribe_status_conflict_total")
+	unsubscribeSuccessTotal      = metrics.NewCounter("unsubscribe_success_total")
+	subscribeStatusConflictTotal = metrics.NewCounter("subscribe_status_conflict_total")
+	subscribeBadRequestTotal     = metrics.NewCounter("subscribe_bad_request_total")
 )
 
 type customer interface {
@@ -36,12 +37,14 @@ func (m *Handlers) Subscribe(w http.ResponseWriter, r *http.Request) {
 	email, err := parseEmail(r)
 	if err != nil {
 		m.Logger.Error("Invalid email", zap.Error(err))
+		subscribeBadRequestTotal.Inc()
 		http.Error(w, "Invalid email", http.StatusBadRequest)
 		return
 	}
 	offset, err := timezone.ProcessTimezoneHeader(r)
 	if err != nil {
 		m.Logger.Error("Invalid timezone", zap.Error(err))
+		subscribeBadRequestTotal.Inc()
 		http.Error(w, "Invalid timezone", http.StatusBadRequest)
 		return
 	}
@@ -49,7 +52,7 @@ func (m *Handlers) Subscribe(w http.ResponseWriter, r *http.Request) {
 	if er := m.Customer.StartTransaction(email, offset); er != nil {
 		if errors.Is(er, customerrepo.ErrorDuplicateCustomer) {
 			m.Logger.Error("Already exists", zap.String("email", email), zap.Error(er))
-			statusConflictTotal.Inc()
+			subscribeStatusConflictTotal.Inc()
 			http.Error(w, "Already exists", http.StatusConflict)
 			return
 		}
@@ -78,7 +81,7 @@ func (m *Handlers) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unsubscribeTotal.Inc()
+	unsubscribeSuccessTotal.Inc()
 	w.WriteHeader(http.StatusOK)
 	render.JSON(w, r, map[string]string{"message": "Successfully unsubscribed"})
 }
