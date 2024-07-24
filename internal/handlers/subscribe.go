@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"github.com/VictoriaMetrics/metrics"
 	"net/http"
 
 	customerrepo "github.com/seemsod1/api-project/internal/customer/repository"
@@ -14,6 +15,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/go-chi/render"
+)
+
+var (
+	unsubscribeTotal    = metrics.NewCounter("unsubscribe_total")
+	statusConflictTotal = metrics.NewCounter("subscribe_status_conflict_total")
 )
 
 type customer interface {
@@ -42,12 +48,13 @@ func (m *Handlers) Subscribe(w http.ResponseWriter, r *http.Request) {
 	if er := m.Customer.StartTransaction(email, offset); er != nil {
 		if errors.Is(er, customerrepo.ErrorDuplicateCustomer) {
 			m.Logger.Error("Already exists", zap.String("email", email), zap.Error(er))
+			statusConflictTotal.Inc()
 			http.Error(w, "Already exists", http.StatusConflict)
 			return
 		}
 	}
 	w.WriteHeader(http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "Successfully subscribed"})
+	render.JSON(w, r, map[string]string{"message": "Thank you for subscribing!"})
 }
 
 // Unsubscribe unsubscribes a user from the newsletter
@@ -70,6 +77,7 @@ func (m *Handlers) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unsubscribeTotal.Inc()
 	w.WriteHeader(http.StatusOK)
 	render.JSON(w, r, map[string]string{"message": "Successfully unsubscribed"})
 }

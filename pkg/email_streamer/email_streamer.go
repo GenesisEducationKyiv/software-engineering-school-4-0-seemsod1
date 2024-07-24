@@ -3,6 +3,7 @@ package emailstreamer
 import (
 	"context"
 	"encoding/binary"
+	"github.com/VictoriaMetrics/metrics"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +13,11 @@ import (
 
 	"github.com/seemsod1/api-project/pkg/logger"
 	"github.com/segmentio/kafka-go"
+)
+
+var (
+	messagesProducedTotal = metrics.NewCounter("kafka_messages_produced_total{service={\"email_streamer\"}")
+	messageProducedErrors = metrics.NewCounter("kafka_messages_produced_errors_total{service={\"email_streamer\"}")
 )
 
 const (
@@ -139,7 +145,10 @@ func (es *EmailStreamer) publishEvent(ctx context.Context, key, message []byte) 
 	)
 	if err != nil {
 		es.Logger.WithContext(ctx).Error("Failed to write to leader", zap.Error(err))
+		messageProducedErrors.Inc()
 		return err
 	}
+
+	messagesProducedTotal.Inc()
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/VictoriaMetrics/metrics"
 	"net/smtp"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -23,8 +24,10 @@ const (
 )
 
 var (
-	EmailSentSuccessfullyTotal = metrics.NewCounter("email_sent_total")
-	EmailSentWithErrorsTotal   = metrics.NewCounter("email_sent_with_errors_total")
+	emailSentSuccessfullyTotal = metrics.NewCounter("email_sent_successfully_total")
+	emailSentWithErrorsTotal   = metrics.NewCounter("email_sent_with_errors_total")
+	emailSendDurationSummary   = metrics.NewSummary("email_sent_duration_seconds")
+	messagesConsumedTotal      = metrics.NewCounter("messages_consumed_total")
 )
 
 type SMTPEmailSender struct {
@@ -112,14 +115,16 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 				continue
 			}
 		}
-
+		startTime := time.Now()
 		if err = s.Send(e); err != nil {
 			s.Logger.WithContext(ctx).Warn("sending email", zap.Error(err))
-			EmailSentWithErrorsTotal.Inc()
+			emailSentWithErrorsTotal.Inc()
 			continue
 		}
+		elapsedTime := time.Since(startTime).Seconds()
+		emailSendDurationSummary.Update(elapsedTime)
 
-		EmailSentSuccessfullyTotal.Inc()
+		emailSentSuccessfullyTotal.Inc()
 
 		event := EventProcessed{
 			ID:   uint(binary.BigEndian.Uint64(m.Key)),
@@ -132,6 +137,7 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 		if err = s.KafkaReader.CommitMessages(ctx, m); err != nil {
 			s.Logger.WithContext(ctx).Error("committing message", zap.Error(err))
 		}
+		messagesConsumedTotal.Inc()
 	}
 }
 

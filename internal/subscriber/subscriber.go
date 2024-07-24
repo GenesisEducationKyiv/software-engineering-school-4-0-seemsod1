@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/VictoriaMetrics/metrics"
 	subscribermodels "github.com/seemsod1/api-project/internal/subscriber/models"
 	subscriberrepo "github.com/seemsod1/api-project/internal/subscriber/repository"
 	"github.com/seemsod1/api-project/pkg/logger"
@@ -13,6 +14,10 @@ import (
 )
 
 const serviceName = "subscriber"
+
+var (
+	newSubscribersTotal = metrics.NewCounter("new_subscribers_total")
+)
 
 type Service struct {
 	Database Database
@@ -113,6 +118,7 @@ func (s *Service) handleCommand(ctx context.Context, data subscribermodels.Comma
 		} else {
 			s.Logger.WithContext(ctx).Info("subscribed successfully")
 			responseMessage = "success"
+			newSubscribersTotal.Inc()
 		}
 	default:
 		responseMessage = "unknown_command"

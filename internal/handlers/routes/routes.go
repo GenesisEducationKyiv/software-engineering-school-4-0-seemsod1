@@ -19,7 +19,7 @@ func API(h *handlers.Handlers) http.Handler {
 	mux.Use(middleware.Recoverer)
 	mux.Use(middlewarepkg.EnableCORS)
 
-	mux.Use(middlewarepkg.Handle)
+	mux.Use(middlewarepkg.Metrics)
 
 	mux.Route("/api", func(mux chi.Router) {
 		mux.Route("/v1", func(mux chi.Router) {

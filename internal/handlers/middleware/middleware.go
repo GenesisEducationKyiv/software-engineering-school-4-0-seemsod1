@@ -22,7 +22,7 @@ func EnableCORS(h http.Handler) http.Handler {
 	})
 }
 
-func Handle(h http.Handler) http.Handler {
+func Metrics(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s := fmt.Sprintf(`requests_total{path=%q}`, r.URL.Path)
 		metrics.GetOrCreateCounter(s).Inc()
