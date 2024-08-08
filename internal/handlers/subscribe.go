@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	customerrepo "github.com/seemsod1/api-project/internal/customer/repository"
 	subscriberrepo "github.com/seemsod1/api-project/internal/subscriber/repository"
 
@@ -16,42 +18,51 @@ import (
 	"github.com/go-chi/render"
 )
 
-type Customer interface {
+var (
+	unsubscribeSuccessTotal      = metrics.NewCounter("unsubscribe_success_total")
+	subscribeStatusConflictTotal = metrics.NewCounter("subscribe_status_conflict_total")
+	subscribeBadRequestTotal     = metrics.NewCounter("subscribe_bad_request_total")
+)
+
+type customer interface {
 	StartTransaction(email string, timezone int) error
 }
 
-type Subscriber interface {
+type subscriber interface {
 	RemoveSubscriber(email string) error
 }
 
 // Subscribe subscribes a user to the newsletter
-func (m *Repository) Subscribe(w http.ResponseWriter, r *http.Request) {
+func (m *Handlers) Subscribe(w http.ResponseWriter, r *http.Request) {
 	email, err := parseEmail(r)
 	if err != nil {
 		m.Logger.Error("Invalid email", zap.Error(err))
+		subscribeBadRequestTotal.Inc()
 		http.Error(w, "Invalid email", http.StatusBadRequest)
 		return
 	}
 	offset, err := timezone.ProcessTimezoneHeader(r)
 	if err != nil {
 		m.Logger.Error("Invalid timezone", zap.Error(err))
+		subscribeBadRequestTotal.Inc()
 		http.Error(w, "Invalid timezone", http.StatusBadRequest)
 		return
 	}
 
 	if er := m.Customer.StartTransaction(email, offset); er != nil {
 		if errors.Is(er, customerrepo.ErrorDuplicateCustomer) {
-			m.Logger.Errorf("%s: %s", email, "Already exists")
+			m.Logger.Error("Already exists", zap.String("email", email), zap.Error(er))
+			subscribeStatusConflictTotal.Inc()
 			http.Error(w, "Already exists", http.StatusConflict)
 			return
 		}
 	}
 	w.WriteHeader(http.StatusOK)
-	render.JSON(w, r, map[string]string{"message": "Successfully subscribed"})
+	render.JSON(w, r, map[string]string{"message": "Thank you for subscribing!"})
 }
 
 // Unsubscribe unsubscribes a user from the newsletter
-func (m *Repository) Unsubscribe(w http.ResponseWriter, r *http.Request) {
+func (m *Handlers) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 	email, err := parseEmail(r)
 	if err != nil {
 		m.Logger.Error("Invalid email", zap.Error(err))
@@ -61,15 +72,16 @@ func (m *Repository) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 
 	if err = m.Subscriber.RemoveSubscriber(email); err != nil {
 		if errors.Is(err, subscriberrepo.ErrorNonExistentSubscription) {
-			m.Logger.Errorf("%s: %s", email, "Not found")
+			m.Logger.Error("Not found", zap.String("email", email), zap.Error(err))
 			http.Error(w, "Not found", http.StatusNotFound)
 			return
 		}
-		m.Logger.Errorf("removing subscriber: %w", err)
+		m.Logger.Error("removing subscriber", zap.Error(err))
 		http.Error(w, "Failed to unsubscribe", http.StatusInternalServerError)
 		return
 	}
 
+	unsubscribeSuccessTotal.Inc()
 	w.WriteHeader(http.StatusOK)
 	render.JSON(w, r, map[string]string{"message": "Successfully unsubscribed"})
 }

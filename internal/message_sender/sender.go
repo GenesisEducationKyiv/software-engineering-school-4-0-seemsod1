@@ -6,6 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/smtp"
+	"time"
+
+	"github.com/VictoriaMetrics/metrics"
+
+	"go.uber.org/zap"
 
 	"github.com/seemsod1/api-project/pkg/logger"
 
@@ -14,17 +19,27 @@ import (
 	"github.com/jordan-wright/email"
 )
 
-const numWorkers = 4
+const (
+	numWorkers  = 4
+	serviceName = "message_sender"
+)
+
+var (
+	emailSentSuccessfullyTotal = metrics.NewCounter("email_sent_successfully_total")
+	emailSentWithErrorsTotal   = metrics.NewCounter("email_sent_with_errors_total")
+	emailSendDurationSummary   = metrics.NewSummary("email_sent_duration_seconds")
+	messagesConsumedTotal      = metrics.NewCounter("messages_consumed_total")
+)
 
 type SMTPEmailSender struct {
 	From         string
 	Pool         *email.Pool
-	EventStorage EventStorage
+	EventStorage eventStorage
 	KafkaReader  *kafka.Reader
 	Logger       *logger.Logger
 }
 
-type EventStorage interface {
+type eventStorage interface {
 	ConsumeEvent(event EventProcessed) error
 	CheckEventProcessed(id int) (bool, error)
 }
@@ -32,7 +47,7 @@ type EventStorage interface {
 func NewSMTPEmailSender(
 	cfg EmailSenderConfig,
 	kafkaReader *kafka.Reader,
-	storage EventStorage,
+	storage eventStorage,
 	logg *logger.Logger,
 ) (*SMTPEmailSender, error) {
 	p, err := email.NewPool(
@@ -59,13 +74,26 @@ func (s *SMTPEmailSender) Send(e *email.Email) error {
 func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 	for {
 		m, err := s.KafkaReader.FetchMessage(ctx)
+
+		var traceID string
+		for _, h := range m.Headers {
+			if h.Key == "trace_id" {
+				traceID = string(h.Value)
+				break
+			}
+		}
+
+		ctx = context.WithValue(ctx, logger.TraceIDKey, traceID)
+		ctx = context.WithValue(ctx, logger.ServiceNameKey, serviceName)
+
 		if err != nil {
-			s.Logger.Warnf("reading message: %v", err)
+			s.Logger.WithContext(ctx).Error("reading message", zap.Error(err))
 			continue
 		}
+
 		data, err := deserializeData(m.Value)
 		if err != nil {
-			s.Logger.Warnf("deserializing message: %v", err)
+			s.Logger.WithContext(ctx).Error("deserializing message", zap.Error(err))
 			continue
 		}
 		e := email.NewEmail()
@@ -74,36 +102,43 @@ func (s *SMTPEmailSender) StartReceivingMessages(ctx context.Context) {
 		e.Subject = "Currency rate notification: USD to UAH"
 		e.Text = []byte(data.Message)
 
-		s.Logger.Infof("Sending email to: %s", e.To)
+		s.Logger.WithContext(ctx).Info("Sending message to", zap.String("email", data.Recipient))
 
 		isProcessed, err := s.EventStorage.CheckEventProcessed(int(binary.BigEndian.Uint64(m.Key)))
 		if err != nil {
-			s.Logger.Warnf("checking if event is processed: %v", err)
+			s.Logger.WithContext(ctx).Error("checking if event is processed", zap.Error(err))
 			continue
 		}
 		if isProcessed {
-			s.Logger.Info("Event is already processed")
+			s.Logger.WithContext(ctx).Warn("Event is already processed")
 			if err = s.KafkaReader.CommitMessages(ctx, m); err != nil {
-				s.Logger.Warnf("committing message: %v", err)
+				s.Logger.WithContext(ctx).Error("committing message", zap.Error(err))
 				continue
 			}
 		}
-
+		startTime := time.Now()
 		if err = s.Send(e); err != nil {
-			s.Logger.Warnf("sending email: %v", err)
+			s.Logger.WithContext(ctx).Warn("sending email", zap.Error(err))
+			emailSentWithErrorsTotal.Inc()
 			continue
 		}
+		elapsedTime := time.Since(startTime).Seconds()
+		emailSendDurationSummary.Update(elapsedTime)
+
+		emailSentSuccessfullyTotal.Inc()
+
 		event := EventProcessed{
 			ID:   uint(binary.BigEndian.Uint64(m.Key)),
 			Data: string(m.Value),
 		}
 		if err = s.EventStorage.ConsumeEvent(event); err != nil {
-			s.Logger.Warnf("consuming event: %v", err)
+			s.Logger.WithContext(ctx).Error("consuming event", zap.Error(err))
 		}
 
 		if err = s.KafkaReader.CommitMessages(ctx, m); err != nil {
-			s.Logger.Warnf("committing message: %v", err)
+			s.Logger.WithContext(ctx).Error("committing message", zap.Error(err))
 		}
+		messagesConsumedTotal.Inc()
 	}
 }
 

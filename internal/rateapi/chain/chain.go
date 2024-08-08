@@ -5,23 +5,23 @@ import (
 	"errors"
 )
 
-type RateService interface {
+type rateService interface {
 	GetRate(ctx context.Context, base, target string) (float64, error)
 }
 
 type Chain interface {
-	RateService
+	rateService
 	SetNext(chainInterface Chain)
 }
 
 var ErrNoRateProviders = errors.New("no available providers to get rate")
 
 type Node struct {
-	rateService RateService
+	rateService rateService
 	next        Chain
 }
 
-func NewNode(fetcher RateService) *Node {
+func NewNode(fetcher rateService) *Node {
 	return &Node{
 		rateService: fetcher,
 	}

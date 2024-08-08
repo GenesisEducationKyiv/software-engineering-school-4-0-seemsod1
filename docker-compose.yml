@@ -7,6 +7,7 @@ services:
       - .env
     ports:
       - "8080:8080"
+      - "8081:8081"
     restart: always
     volumes:
       - .:/usr/src/app
@@ -59,9 +60,67 @@ services:
     networks:
       - api-network
 
+  vmagent:
+    container_name: vmagent
+    image: victoriametrics/vmagent:v1.102.0
+    depends_on:
+      - "victoriametrics"
+    ports:
+      - 8429:8429
+    volumes:
+      - vmagentdata:/vmagentdata
+      - ./vm_config.yml:/etc/prometheus/vm_config.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/vm_config.yml"
+      - "--remoteWrite.url=http://victoriametrics:8428/api/v1/write"
+      - "--enableTCP6"
+    networks:
+      - api-network
+    restart: always
+
+    # VictoriaMetrics instance, a single process responsible for
+    # storing metrics and serve read requests.
+  victoriametrics:
+      container_name: victoriametrics
+      image: victoriametrics/victoria-metrics:v1.102.0
+      ports:
+        - 8428:8428
+        - 4242:4242
+      volumes:
+        - vmdata:/storage
+      command:
+        - "--storageDataPath=/storage"
+        - "--httpListenAddr=:8428"
+        - "--opentsdbListenAddr=:4242"
+
+      networks:
+        - api-network
+      restart: always
+
+    # Grafana instance configured with VictoriaMetrics as datasource
+  grafana:
+      container_name: grafana
+      image: grafana/grafana:10.4.2
+      depends_on:
+        - "victoriametrics"
+      ports:
+        - 3000:3000
+      volumes:
+        - grafanadata:/var/lib/grafana
+        - ./provisioning/datasources/prometheus-datasource:/etc/grafana/provisioning/datasources
+        - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
+        - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
+        - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
+      networks:
+        - api-network
+      restart: always
+
 
 volumes:
   postgres_data:
+  vmagentdata: { }
+  vmdata: { }
+  grafanadata: { }
 
 networks:
   api-network:

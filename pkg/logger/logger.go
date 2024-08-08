@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"context"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -9,6 +11,17 @@ type Logger struct {
 	logger *zap.Logger
 	sugar  *zap.SugaredLogger
 }
+
+type ContextKey string
+
+var (
+	contextKeys = map[ContextKey]string{
+		TraceIDKey:     "trace_id",
+		ServiceNameKey: "service_name",
+	}
+	TraceIDKey     = ContextKey("trace_id")
+	ServiceNameKey = ContextKey("service_name")
+)
 
 // NewLogger creates a new Logger instance
 func NewLogger(mode string) (*Logger, error) {
@@ -64,52 +77,26 @@ func (l *Logger) Error(msg string, fields ...zap.Field) {
 	l.logger.Error(msg, fields...)
 }
 
-// DPanic logs a message at DPanic level
-func (l *Logger) DPanic(msg string, fields ...zap.Field) {
-	l.logger.DPanic(msg, fields...)
-}
-
-// Panic logs a message at Panic level
-func (l *Logger) Panic(msg string, fields ...zap.Field) {
-	l.logger.Panic(msg, fields...)
-}
-
 // Fatal logs a message at Fatal level
 func (l *Logger) Fatal(msg string, fields ...zap.Field) {
 	l.logger.Fatal(msg, fields...)
 }
 
-// Debugf logs a message at Debug level with a template
-func (l *Logger) Debugf(template string, args ...interface{}) {
-	l.sugar.Debugf(template, args...)
-}
+func (l *Logger) WithContext(ctx context.Context) *Logger {
+	if ctx == nil {
+		return l
+	}
 
-// Infof logs a message at Info level with a template
-func (l *Logger) Infof(template string, args ...interface{}) {
-	l.sugar.Infof(template, args...)
-}
+	logger := l.logger
+	var fields []zap.Field
 
-// Warnf logs a message at Warn level with a template
-func (l *Logger) Warnf(template string, args ...interface{}) {
-	l.sugar.Warnf(template, args...)
-}
+	for key, value := range contextKeys {
+		if val, ok := ctx.Value(key).(string); ok {
+			fields = append(fields, zap.String(value, val))
+		}
+	}
 
-// Errorf logs a message at Error level with a template
-func (l *Logger) Errorf(template string, args ...interface{}) {
-	l.sugar.Errorf(template, args...)
-}
-
-// DPanicf logs a message at DPanic level with a template
-func (l *Logger) DPanicf(template string, args ...interface{}) {
-	l.sugar.DPanicf(template, args...)
-}
-
-// Panicf logs a message at Panic level with a template
-func (l *Logger) Panicf(template string, args ...interface{}) {
-	l.sugar.Panicf(template, args...)
-}
-
-// Fatalf logs a message at Fatal level with a template
-func (l *Logger) Fatalf(template string, args ...interface{}) {
-	l.sugar.Fatalf(template, args...)
+	return &Logger{
+		logger: logger.With(fields...),
+	}
 }

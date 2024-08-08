@@ -2,13 +2,17 @@ package driver
 
 import (
 	"fmt"
-	"log"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/seemsod1/api-project/pkg/logger"
+	"go.uber.org/zap"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+const retryNumber = 10
 
 // DatabaseConfig is a struct that holds the database configuration
 type DatabaseConfig struct {
@@ -31,10 +35,13 @@ func (dc *DatabaseConfig) Validate() bool {
 // GORMDriver is a struct that embeds the gorm.DB
 type GORMDriver struct {
 	DB *gorm.DB
+	l  *logger.Logger
 }
 
-func NewGORMDriver() *GORMDriver {
-	return &GORMDriver{}
+func NewGORMDriver(l *logger.Logger) *GORMDriver {
+	return &GORMDriver{
+		l: l,
+	}
 }
 
 // ConnectSQL connects to the database
@@ -48,7 +55,10 @@ func (gd *GORMDriver) ConnectSQL() (*GORMDriver, error) {
 		return nil, fmt.Errorf("validating database configuration: %t", cfg.Validate())
 	}
 
-	d := gd.openDB(cfg)
+	d, er := gd.openDB(cfg)
+	if er != nil {
+		return nil, er
+	}
 
 	dbConn := &GORMDriver{}
 
@@ -58,11 +68,26 @@ func (gd *GORMDriver) ConnectSQL() (*GORMDriver, error) {
 }
 
 // openDB opens a database connection
-func (gd *GORMDriver) openDB(cfg *DatabaseConfig) *gorm.DB {
-	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{})
-	if err != nil {
-		log.Fatal("error connecting to database: ", err)
-	}
+func (gd *GORMDriver) openDB(cfg *DatabaseConfig) (*gorm.DB, error) {
+	var counts int64
+	var db *gorm.DB
+	var err error
+	for {
+		db, err = gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{})
+		if err != nil {
+			gd.l.Error("Postgres not yet ready...", zap.Int64("attempt", counts), zap.Error(err))
+			counts++
+		} else {
+			gd.l.Debug("connected to Postgres!")
+			return db, nil
+		}
 
-	return db
+		if counts > retryNumber {
+			gd.l.Error("maximum retry attempts exceeded", zap.Error(err))
+			return nil, err
+		}
+
+		gd.l.Debug("retrying to connect to Postgres...")
+		time.Sleep(2 * time.Second)
+	}
 }

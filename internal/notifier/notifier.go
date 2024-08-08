@@ -6,49 +6,47 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/seemsod1/api-project/pkg/notifier"
 
 	"github.com/seemsod1/api-project/pkg/timezone"
 
-	"github.com/jordan-wright/email"
 	"github.com/seemsod1/api-project/pkg/logger"
 )
 
 const (
-	TimeToSend   = 9 // 9 AM to send emails
-	MinuteToSend = 1 // send at *:01 AM
+	timeToSend   = 9 // 9 AM to send emails
+	minuteToSend = 1 // send at *:01 AM
+	serviceName  = "notifier"
 )
 
 type EmailNotifier struct {
-	Subscriber  SubscriberRepo
-	Event       EventRepo
-	Scheduler   Scheduler
-	RateService RateService
+	Subscriber  subscriberRepo
+	Event       eventRepo
+	Scheduler   scheduler
+	RateService rateService
 	Logger      *logger.Logger
 }
 
 type (
-	EmailSender interface {
-		Send(e *email.Email) error
-	}
-
-	RateService interface {
+	rateService interface {
 		GetRate(ctx context.Context, base, target string) (float64, error)
 	}
 
-	Scheduler interface {
+	scheduler interface {
 		Start()
 		AddEverydayJob(task func(), minute int) error
 	}
-	SubscriberRepo interface {
+	subscriberRepo interface {
 		GetSubscribersWithTimezone(timezoneDiff int) ([]string, error)
 	}
-	EventRepo interface {
+	eventRepo interface {
 		AddToEvents([]notifier.Event) error
 	}
 )
 
-func NewEmailNotifier(subs SubscriberRepo, eventRepo EventRepo, sch Scheduler, rateService RateService,
+func NewEmailNotifier(subs subscriberRepo, eventRepo eventRepo, sch scheduler, rateService rateService,
 	logg *logger.Logger,
 ) *EmailNotifier {
 	return &EmailNotifier{
@@ -65,25 +63,29 @@ func (et *EmailNotifier) Start() error {
 
 	sch := et.Scheduler
 	sch.Start()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, logger.ServiceNameKey, serviceName)
+
 	err := sch.AddEverydayJob(func() {
-		et.Logger.Info("Sending emails")
+		et.Logger.WithContext(ctx).Info("Sending emails")
 
 		localTime := time.Now().Hour()
-		timezoneDiff := timezone.GetTimezoneDiff(localTime, TimeToSend)
+		timezoneDiff := timezone.GetTimezoneDiff(localTime, timeToSend)
 		if err := timezone.ValidateTimezoneDiff(timezoneDiff); err != nil {
-			et.Logger.Errorf("Error validating timezone diff: %v\n", err)
+			et.Logger.WithContext(ctx).Error("Error validating timezone diff", zap.Error(err))
 			return
 		}
 
+		et.Logger.Debug("getting subscribers")
 		subs, er := et.Subscriber.GetSubscribersWithTimezone(timezoneDiff)
 		if er != nil {
-			et.Logger.Errorf("Error getting subscribers: %v\n", er)
+			et.Logger.WithContext(ctx).Error("Error getting subscribers", zap.Error(er))
 			return
 		}
 
-		et.SendRate(subs)
-		et.Logger.Info("Emails sent")
-	}, MinuteToSend)
+		et.SendRate(ctx, subs)
+		et.Logger.WithContext(ctx).Info("Emails sent")
+	}, minuteToSend)
 	if err != nil {
 		return fmt.Errorf("adding everyday job: %w", err)
 	}
@@ -91,13 +93,14 @@ func (et *EmailNotifier) Start() error {
 	return nil
 }
 
-func (et *EmailNotifier) SendRate(recipients []string) {
+func (et *EmailNotifier) SendRate(cntx context.Context, recipients []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	et.Logger.WithContext(cntx).Debug("getting rate from providers")
 	rate, err := et.RateService.GetRate(ctx, "USD", "UAH")
 	if err != nil {
-		et.Logger.Errorf("Error getting rate: %v\n", err)
+		et.Logger.WithContext(cntx).Error("Error getting rate", zap.Error(err))
 		return
 	}
 	msgText := fmt.Sprintf("Current rate: %.2f", rate)
@@ -110,7 +113,7 @@ func (et *EmailNotifier) SendRate(recipients []string) {
 		}
 		serializedData, er := serializeData(data)
 		if er != nil {
-			et.Logger.Errorf("Error serializing data: %v\n", err)
+			et.Logger.WithContext(cntx).Error("Error serializing data", zap.Error(er))
 			return
 		}
 
@@ -121,11 +124,11 @@ func (et *EmailNotifier) SendRate(recipients []string) {
 	}
 
 	if err = et.Event.AddToEvents(messages); err != nil {
-		et.Logger.Errorf("Error adding to events list: %v\n", err)
+		et.Logger.WithContext(cntx).Error("Error adding to events list", zap.Error(err))
 		return
 	}
 
-	et.Logger.Info("All messages saved to outbox")
+	et.Logger.WithContext(cntx).Info("All messages saved to outbox")
 }
 
 // serializeData converts a Message struct to a JSON string, excluding ID, CreatedAt and SentAt

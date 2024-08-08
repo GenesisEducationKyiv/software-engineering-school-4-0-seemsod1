@@ -50,7 +50,7 @@ tasks:
       desc: "Build the Docker image"
       aliases: [db]
       cmds:
-        - docker build -t api-project .
+        - docker buildx build -t api-project .
       sources:
           - Dockerfile
           - "**/*.go"
@@ -60,7 +60,7 @@ tasks:
       desc: "Run the Docker Compose"
       aliases: [dcu]
       cmds:
-        - docker-compose up -d
+        - docker compose up -d
       sources:
           - docker-compose.yml
           - .env
@@ -70,8 +70,8 @@ tasks:
       desc: "Build the Docker Compose"
       aliases: [dcb]
       cmds:
-        - docker-compose down
-        - docker-compose up --build -d
+        - docker compose down
+        - docker compose up --build -d
       sources:
           - docker-compose.yml
           - .env
@@ -81,7 +81,7 @@ tasks:
         desc: "Stop the Docker Compose"
         aliases: [dcd]
         cmds:
-            - docker-compose down
+            - docker compose down
         method: none
 
   fumpt:

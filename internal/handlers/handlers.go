@@ -4,28 +4,20 @@ import (
 	"github.com/seemsod1/api-project/pkg/logger"
 )
 
-// Repo is the repository used by the handlers
-var Repo *Repository
-
-// Repository is the repository struct
-type Repository struct {
-	Customer    Customer
-	Subscriber  Subscriber
-	RateService RateService
+// Handlers is a struct that contains all the services
+type Handlers struct {
+	Customer    customer
+	Subscriber  subscriber
+	RateService rateService
 	Logger      *logger.Logger
 }
 
-// NewRepo creates a new repository with GORM
-func NewRepo(c Customer, subs Subscriber, rateService RateService, log *logger.Logger) *Repository {
-	return &Repository{
+// NewHandlers creates handlers
+func NewHandlers(c customer, subs subscriber, rateService rateService, log *logger.Logger) *Handlers {
+	return &Handlers{
 		Customer:    c,
 		Subscriber:  subs,
 		RateService: rateService,
 		Logger:      log,
 	}
-}
-
-// NewHandlers creates a new handlers
-func NewHandlers(r *Repository) {
-	Repo = r
 }
