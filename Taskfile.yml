@@ -1,0 +1,93 @@
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task: lint
+      - task: test
+
+  lint:
+    desc: "Run golangci-lint to check for code issues"
+    aliases: [l]
+    sources:
+      - "**/*.go"
+      - .golangci.yml
+    cmds:
+      - golangci-lint run
+
+  test:
+    desc: "Run go test"
+    aliases: [t]
+    cmds:
+      - go test -v ./...
+    sources:
+      - "**/*.go"
+
+  mod:
+    desc: "Downloads and tidy Go modules"
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  build:
+    desc: "Build the Go project"
+    aliases: [b]
+    cmds:
+      - go build -o web.exe ./cmd/web
+    sources:
+      - "**/*.go"
+    method: none
+
+  run:
+      desc: "Run the Go project"
+      aliases: [lr]
+      deps:
+        - build
+      cmds:
+        - \web.exe
+
+  docker-build:
+      desc: "Build the Docker image"
+      aliases: [db]
+      cmds:
+        - docker buildx build -t api-project .
+      sources:
+          - Dockerfile
+          - "**/*.go"
+          - .env
+
+  docker-compose-up:
+      desc: "Run the Docker Compose"
+      aliases: [dcu]
+      cmds:
+        - docker compose up -d
+      sources:
+          - docker-compose.yml
+          - .env
+      method: none
+
+  docker-compose-build:
+      desc: "Build the Docker Compose"
+      aliases: [dcb]
+      cmds:
+        - docker compose down
+        - docker compose up --build -d
+      sources:
+          - docker-compose.yml
+          - .env
+      method: none
+
+  docker-compose-down:
+        desc: "Stop the Docker Compose"
+        aliases: [dcd]
+        cmds:
+            - docker compose down
+        method: none
+
+  fumpt:
+    desc: "Run gofumpt to format the code"
+    aliases: [f]
+    sources:
+      - "**/*.go"
+    cmds:
+      - gofumpt -l -w .

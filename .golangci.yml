@@ -1,0 +1,53 @@
+linters:
+  enable:
+    - govet
+    - unconvert
+    - megacheck
+    - gas
+    - gocyclo
+    - dupl
+    - misspell
+    - unparam
+    - typecheck
+    - ineffassign
+    - stylecheck
+    - gochecknoinits
+    - exportloopref
+    - gocritic
+    - revive
+    - nakedret
+    - gosimple
+    - prealloc
+    - unused
+    - dogsled
+    - gocognit
+    - gofumpt
+    - noctx
+    - testpackage
+    - lll
+    - errcheck
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+  lll:
+    line-length: 140
+  gocylo:
+    min-complexity: 25
+  dupl:
+    threshold: 100
+  errcheck:
+    check-type-assertions: true
+  misspell:
+    locale: US
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - wrapperFunc
+      - hugeParam
+      - rangeValCopy
